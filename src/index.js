@@ -13,7 +13,7 @@ export default class RestClient {
    *
    * @constructor
    * @param {Object} config
-   * @return {Model}
+   * @return {RestClient}
    */
   constructor({
     /**
