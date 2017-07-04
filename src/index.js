@@ -1,8 +1,9 @@
-import { castArray, flatten, isArray, isFunction, isPlainObject } from 'lodash';
+import Cachemap from 'cachemap';
+import { castArray, flatten, isFunction } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
-const instances = {};
+let instance;
 
 /**
  *
@@ -18,10 +19,24 @@ export default class RestClient {
   constructor({
     /**
      *
+     * Base url to which to make requests.
+     *
+     * @type {string}
+     */
+    baseURL,
+    /**
+     * How many assets can be batched together in
+     * the same request.
+     *
+     * @type {number}
+     */
+    batchLimit = '20',
+    /**
+     *
      * Optional function used to parse the body of
      * a response prior the client returning it.
      * The client requires any data returned to be
-     * on a property of 'data' and any errors return
+     * on a property of 'data' and any errors returned
      * to be on a property of 'errors'.
      *
      * @type {Function}
@@ -37,44 +52,26 @@ export default class RestClient {
     dataParser = null,
     /**
      *
-     * Url to which to make requests.
+     * Optional configuration to be passed to the
+     * cachemap module.
      *
-     * @type {string}
+     * @type {Object}
      */
-    endpoint,
+    cachemapOptions,
     /**
-     * Key identifier of the asset(s) being requested.
      *
-     * @type {string}
+     * Disables caching of responses against request url.
+     *
+     * @type {boolean}
      */
-    identifier = 'id',
+    disableCaching = false,
     /**
-     * Any headers to be sent with the requset.
+     * Any headers to be sent with requests, such as
+     * authentication headers.
      *
      * @type {Object}
      */
     headers = null,
-    /**
-     * Optional key identifier if the multi query
-     * dentifier is not the same as the identifier.
-     *
-     * @type {string}
-     */
-    multiQueryIdentifier = null,
-    /**
-     * How many assets can be matched together in
-     * the same request. If null, then the client
-     * will not support multi query.
-     *
-     * @type {number}
-     */
-    multiQueryLimit = null,
-    /**
-     * Name of the client.
-     *
-     * @type {string}
-     */
-    name,
     /**
      * Whether to create a new instance of a
      * client or return the existing instance.
@@ -90,152 +87,120 @@ export default class RestClient {
      * @type {Object}
      */
     tracker = {},
-    /**
-     * Optional name to be used in place of 'type' as
-     * the placeholder name in the enndpoint, if
-     * client endpoint supports different types.
-     *
-     * @type {string}
-     */
-    typeAlias = null,
-    /**
-     * Optional array of supported types.
-     *
-     * @type {Array<string>}
-     */
-    types = [],
   } = {}) {
-    if (instances[name] && !newInstance) {
-      return instances[name];
+    if (instance && !newInstance) {
+      return instance;
     }
 
-    if (!endpoint || !name) {
-      throw new Error('Endpoint, name and types are mandatory properties for a rest client.');
+    if (!baseURL) {
+      throw new Error('baseURL is mandatory properties for a rest client.');
     }
 
+    this._baseURL = baseURL;
+    this._batchLimit = batchLimit;
     this._bodyParser = bodyParser;
+    this._cache = new Cachemap(cachemapOptions);
     this._dataParser = dataParser;
-    this._endpoint = endpoint;
-    this._identifier = identifier;
-    this._multiQueryIdentifier = multiQueryIdentifier;
-    this._multiQueryLimit = multiQueryLimit;
-    this._name = name;
+    this._disableCaching = disableCaching;
     this._headers = headers;
-    this._requests = tracker;
-    this._typeAlias = typeAlias;
-    this._types = types;
-    instances[name] = this;
-    return instances[name];
+    this._tracker = tracker;
+    instance = this;
+    return instance;
   }
 
   /**
    *
    * @private
-   * @param {Object} requests
-   * @param {string} idValue
-   * @param {Object} context
-   * @param {string} type
+   * @param {string} path
+   * @param {Object} tracker
+   * @param {string} resource
+   * @param {string} fetchID
+   * @param {string} requestID
    * @return {Object}
    */
-  _addToFetch(requests, idValue, { fetchID, requestID, values }, type) {
-    const index = requests.active.findIndex(obj => obj.value === idValue);
-    let activeMatch;
-
-    if (index !== -1) {
-      activeMatch = requests.active.splice(index, 1)[0];
-    }
-
-    const fetchMatch = requests.fetching.find(obj => obj.value === idValue);
-    const activeFetchID = isPlainObject(activeMatch) ? activeMatch.fetchID : fetchID;
-    const promises = [];
-    let isPending = false;
+  _addToFetch(path, tracker, resource, fetchID, requestID) {
+    const index = tracker.active.findIndex(obj => obj.value === resource);
+    const activeMatch = (index !== -1) ? tracker.active.splice(index, 1)[0] : null;
+    const activeFetchID = activeMatch ? activeMatch.fetchID : fetchID;
+    const fetchMatch = tracker.fetching.find(obj => obj.value === resource);
 
     if (!fetchMatch) {
-      requests.fetching.push({ fetchID: activeFetchID, value: idValue });
-    } else {
-      requests.pending[idValue] = requests.pending[idValue] || [];
-
-      promises.push(this._setPendingRequest(
-        requests.pending[idValue], { fetchID: fetchMatch.fetchID },
-      ));
-
-      this._updatePendingRequests(
-        { fetchID: fetchMatch.fetchID, value: idValue }, requestID, type,
-      );
-
-      values = values.filter(value => value !== idValue);
-      isPending = true;
+      tracker.fetching.push({ fetchID: activeFetchID, value: resource });
+      return {};
     }
 
-    return { isPending, promises };
+    const promises = [];
+    if (!tracker.pending[resource]) tracker.pending[resource] = [];
+
+    promises.push(this._setPendingRequest(
+      tracker.pending[resource], { fetchID: fetchMatch.fetchID },
+    ));
+
+    this._updatePendingRequests({ fetchID: fetchMatch.fetchID, resource }, requestID, path);
+    return { pending: true, promises };
   }
 
   /**
    *
    * @private
-   * @param {Object} args
    * @param {Object} context
-   * @param {string} type
+   * @param {Object} options
    * @return {Object}
    */
-  _batchRequest(args, { fetchID, requestID, values }, type) {
-    const requests = this._getRequestMeta(requestID, type);
-    const idValues = args[this._identifier];
+  _batchRequest({ path, resource, fetchID, requestID }, { batch, batchLimit }) {
+    const tracker = this._getTracker(requestID, path);
+
     let promises = [];
 
-    for (let i = idValues.length - 1; i >= 0; i -= 1) {
-      const res = this._addToFetch(requests, idValues[i], { fetchID, requestID, values }, type);
-      promises = promises.concat(res.promises);
-
-      if (res.isPending) {
-        idValues.splice(i, 1);
-      }
+    for (let i = resource.active.length - 1; i >= 0; i -= 1) {
+      const added = this._addToFetch(path, tracker, resource.active[i], fetchID, requestID);
+      promises = [...promises, ...added.promises];
+      if (added.pending) resource.pending = [...resource.pending, ...resource.active.splice(i, 1)];
     }
 
-    const skip = !idValues.length;
+    const skip = !resource.active.length;
 
-    if (!skip && this._multiQueryLimit) {
-      if (requests.active.length && idValues.length < this._multiQueryLimit) {
-        for (let i = requests.active.length - 1; i >= 0; i -= 1) {
-          idValues.push(requests.active[i].value);
-          requests.fetching.push({ fetchID, value: requests.active[i].value });
+    if (!skip && batch) {
+      const limit = batchLimit || this._batchLimit;
+      resource.batched = resource.active;
+
+      if (tracker.active.length && resource.batched.length < limit) {
+        for (let i = tracker.active.length - 1; i >= 0; i -= 1) {
+          resource.batched.push(tracker.active[i].value);
+          tracker.fetching.push({ fetchID, value: tracker.active[i].value });
 
           this._updatePendingRequests(
-            { fetchID, value: requests.active[i].value }, requestID, type,
+            { fetchID, resource: tracker.active[i].value }, requestID, path,
           );
 
-          requests.active.splice(i, 1);
-
-          if (idValues.length === this._multiQueryLimit) {
-            break;
-          }
+          tracker.active.splice(i, 1);
+          if (resource.batched.length === limit) break;
         }
       }
     }
 
-    args[this._identifier] = idValues;
     return { promises, skip };
   }
 
   /**
    *
    * @private
-   * @param {Array<string>} values
+   * @param {Array<string>} resource
    * @return {Array<Array>}
    */
-  _batchValues(values) {
+  _batchResource(resource) {
     const batches = [];
-    const countLimit = Math.ceil(values.length / this._multiQueryLimit);
-    let counter = 0;
+    const countLimit = Math.ceil(resource.length / this._batchLimit);
+    let count = 0;
     let start = 0;
-    let stop = this._multiQueryLimit;
+    let stop = this._batchLimit;
 
     do {
-      batches.push(values.slice(start, stop));
-      start += this._multiQueryLimit;
-      stop += this._multiQueryLimit;
-      counter += 1;
-    } while (counter < countLimit);
+      batches.push(resource.slice(start, stop));
+      start += this._batchLimit;
+      stop += this._batchLimit;
+      count += 1;
+    } while (count < countLimit);
 
     return batches;
   }
@@ -243,114 +208,241 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Object} args
-   * @param {string} type
-   * @return {Array<Object>}
+   * @param {Object} queryParams
+   * @return {string}
    */
-  _buildURLs(args, type) {
-    let endpoint = this._endpoint;
-    const queryIndex = endpoint.indexOf('?');
+  _buildQueryString(queryParams) {
+    let queryString = '';
+    let paramCount = 0;
 
-    if (queryIndex !== -1) {
-      endpoint = this._populateQueryString(endpoint, args);
-    }
+    Object.keys(queryParams).forEach((key) => {
+      paramCount += 1;
+      const prefix = paramCount === 1 ? '?' : '&';
+      queryString += `${prefix}${key}=${queryParams[key]}`;
+    });
 
-    if (type) {
-      endpoint = this._populateType(endpoint, type);
-    }
-
-    return this._populateIdentifier(endpoint, args);
+    return queryString;
   }
 
   /**
    *
    * @private
-   * @param {Object} args
    * @param {Object} context
-   * @param {string} [type]
+   * @param {Object} options
+   * @return {Array<Object>}
+   */
+  _buildEndpoints({ path, resource, queryParams }, { batch }) {
+    let endpoint = resource ? `${path}/{resource}` : path;
+    if (queryParams) endpoint += this._buildQueryString(queryParams);
+    if (!resource) return [{ endpoint }];
+    return this._populateResource(endpoint, batch ? resource.batched : resource.active, batch);
+  }
+
+  /**
+   *
+   * @private
+   * @param {Object} context
+   * @return {Promise}
+   */
+  async _checkCache({ path, resource, queryParams }) {
+    if (this._disableCaching) return {};
+    const endpoints = this._buildEndpoints({ path, resource, queryParams }, { batch: false });
+    const promises = [];
+
+    endpoints.forEach(({ endpoint, values }) => {
+      promises.push(this._checkEntry(endpoint, values, resource));
+    });
+
+    const data = await Promise.all(promises);
+    const skip = (resource && !resource.active.length) || (!resource && data.length);
+    return { data, skip };
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} endpoint
+   * @param {string} value
+   * @param {Object} resource
    * @return {Object}
    */
-  _dedupRequest(args, context, type) {
-    const requests = this._getRequestMeta(context.requestID, type);
-    const idValues = args[this._identifier];
+  async _checkEntry(endpoint, value, resource) {
+    let data;
 
-    if (!requests.active) {
-      requests.active = idValues.map(value => ({ fetchID: context.fetchID, value }));
+    try {
+      if (await this._cache.has(endpoint)) data = await this._cache.get(endpoint);
+    } catch (err) {
+      logger.error(err);
+    }
+
+    if (data && resource) {
+      const index = resource.active.findIndex(val => val === value);
+      if (index !== -1) resource.active.splice(index, 1);
+    }
+
+    return data || null;
+  }
+
+  /**
+   *
+   * @private
+   * @param {Object} context
+   * @return {Object}
+   */
+  _dedupRequest({ path, resource, fetchID, requestID }) {
+    const tracker = this._getTracker(requestID, path);
+
+    if (!tracker.active.length) {
+      tracker.active = resource.active.map(value => ({ fetchID, value }));
       return {};
     }
 
     const promises = [];
 
-    for (let i = idValues.length - 1; i >= 0; i -= 1) {
-      const match = requests.active.find(obj => obj.value === idValues[i]);
+    for (let i = resource.active.length - 1; i >= 0; i -= 1) {
+      const match = tracker.active.find(obj => obj.value === resource.active[i]);
 
       if (match) {
-        requests.pending[idValues[i]] = requests.pending[idValues[i]] || [];
+        if (!tracker.pending[resource.active[i]]) tracker.pending[resource.active[i]] = [];
 
         promises.push(this._setPendingRequest(
-          requests.pending[idValues[i]], { fetchID: match.fetchID },
+          tracker.pending[resource.active[i]], { fetchID: match.fetchID },
         ));
 
-        context.values = context.values.filter(value => value !== idValues[i]);
-        idValues.splice(i, 1);
+        resource.pending = [...resource.pending, ...resource.active.splice(i, 1)];
       }
     }
 
-    const skip = !idValues.length;
-
-    if (!skip) {
-      requests.active = [
-        ...requests.active, ...idValues.map(value => ({ fetchID: context.fetchID, value })),
-      ];
+    if (resource.active.length) {
+      tracker.active = [...tracker.active, ...resource.active.map(value => ({ fetchID, value }))];
     }
 
-    args[this._identifier] = idValues;
-    return { promises, skip };
+    return { promises };
   }
 
   /**
    *
    * @private
-   * @param {string} url
+   * @param {string} method
+   * @param {string} endpoint
    * @param {string|Array<string>} values
    * @param {Object} context
-   * @param {string} type
+   * @param {Object} options
    * @return {Promise}
    */
-  async _fetch(url, values, context, type) {
+  async _fetch(method, endpoint, values, context, options) {
     let res, errors;
 
     try {
-      logger.info(`${this._name} fetching: ${url}`, context);
-      res = await fetch(url, { headers: new Headers(this._headers) });
+      logger.info(`${this._name} fetching: ${endpoint}`, context);
+      const headers = options.headers ? { ...this._headers, ...options.headers } : this._headers;
+
+      res = await fetch(`${this._baseURL}${endpoint}`, {
+        method,
+        headers: new Headers(headers),
+      });
     } catch (err) {
       errors = err;
       logger.error(err);
     }
 
     if (errors) {
-      this._resolveRequests({ errors }, values, context, type);
+      this._resolveRequests({ errors }, values, context);
       return { errors };
     }
 
     let body = await res.json();
-    body = isFunction(this._bodyParser) ? this._bodyParser(body, type) : body;
+    body = isFunction(this._bodyParser) ? this._bodyParser(body, context) : body;
 
     if (body.errors) {
-      this._resolveRequests({ errors: body.errors }, values, context, type);
+      this._resolveRequests({ errors: body.errors }, values, context);
       return { errors: body.errors };
     }
 
-    let data;
+    const data = isFunction(this._dataParser)
+        ? this._dataParser(body.data, context, res.headers) : body.data;
 
-    if (isFunction(this._dataParser)) {
-      data = this._dataParser(body.data, type, res.headers);
+    if (!values) return data;
+    this._resolveRequests({ data }, values, context);
+    return this._resolveResource(data, context);
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} requestID
+   * @param {string} path
+   * @return {string}
+   */
+  _getTracker(requestID, path) {
+    if (requestID && !this._tracker[requestID]) this._tracker[requestID] = {};
+    let tracker = requestID ? this._tracker[requestID] : this._tracker;
+    if (!tracker[path]) tracker[path] = {};
+    tracker = tracker[path];
+    if (!tracker.active) tracker.active = [];
+    if (!tracker.fetching) tracker.fetching = [];
+    if (!tracker.pending) tracker.pending = {};
+    return tracker[path];
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} endpoint
+   * @param {Array<string>} resource
+   * @param {boolean} batch
+   * @return {Array<Object>}
+   */
+  _populateResource(endpoint, resource, batch) {
+    const regex = /{resource}/;
+    const endpoints = [];
+
+    if (!batch) {
+      resource.forEach((value) => {
+        endpoints.push({ endpoint: endpoint.replace(regex, value), values: value });
+      });
+    } else if (resource.length <= this._batchLimit) {
+      endpoints.push({ endpoint: endpoint.replace(regex, resource.join(',')), values: resource });
     } else {
-      data = body.data;
+      this._batchResource(resource).forEach((group) => {
+        endpoints.push({ endpoint: endpoint.replace(regex, group.join(',')), values: group });
+      });
     }
 
-    this._resolveRequests({ data }, values, context, type);
-    return this._filterContextData(data, context);
+    return endpoints;
+  }
+
+  /**
+   *
+   * @private
+   * @param {Object|Array<Object>} res
+   * @param {string|Array<string>} values
+   * @param {Object} context
+   * @return {void}
+   */
+  async _resolveRequests(res, values, { fetchID, requestID, path, resource, queryParams }) {
+    if (!values) return;
+    const { fetching, pending } = this._getTracker(requestID, path);
+    const data = castArray(res.data);
+    values = castArray(values);
+
+    values.forEach((value) => {
+      const index = fetching.findIndex(obj => obj.value === value);
+      if (index !== -1) fetching.splice(index, 1);
+
+      const match = res.errors
+          ? { errors: res.errors } : data.find(obj => obj[resource.key] === value);
+
+      if (!res.errors && match) this._setCache(path, value, queryParams, match);
+      if (!pending[value]) return;
+
+      for (let i = pending[value].length - 1; i >= 0; i -= 1) {
+        if (pending[value][i].fetchID === fetchID) {
+          pending[value][i].resolve(res);
+          pending[value].splice(i, 1);
+        }
+      }
+    });
   }
 
   /**
@@ -360,19 +452,12 @@ export default class RestClient {
    * @param {Object} context
    * @return {Object|Array<Object>}
    */
-  _filterContextData(data, { values }) {
+  _resolveResource(data, { resource }) {
     const filtered = [];
 
-    if (!isArray(data)) {
-      return data;
-    }
-
-    values.forEach((value) => {
-      const match = data.find(obj => obj[this._identifier] === value);
-
-      if (match) {
-        filtered.push(match);
-      }
+    resource.active.forEach((value) => {
+      const match = data.find(obj => obj[resource.key] === value);
+      if (match) filtered.push(match);
     });
 
     return filtered;
@@ -381,170 +466,39 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {string} requestID
-   * @param {string} type
-   * @return {string}
+   * @param {string} path
+   * @param {string} resource
+   * @param {Object} queryParams
+   * @param {Object} data
+   * @return {Promise}
    */
-  _getRequestMeta(requestID, type) {
-    let requests;
+  async _setCache(path, resource, queryParams, data) {
+    if (this._disableCaching) return;
+    const endpoints = this._buildEndpoints({ path, resource, queryParams }, { batch: false });
 
-    if (requestID) {
-      requests = this._requests[requestID];
-
-      if (!requests) {
-        this._requests[requestID] = {};
-        requests = this._requests[requestID];
-      }
-    } else {
-      requests = this._requests;
-
-      if (!requests) {
-        this._requests = {};
-        requests = this._requests;
-      }
+    try {
+      this._cache.set(endpoints[0], data);
+    } catch (err) {
+      logger.error(err);
     }
-
-    let requestsType;
-
-    if (type) {
-      requestsType = requests[type];
-
-      if (!requestsType) {
-        requests[type] = {};
-        requestsType = requests[type];
-      }
-    }
-
-    const meta = requestsType || requests;
-
-    if (!meta.fetching) {
-      meta.fetching = [];
-    }
-
-    if (!meta.pending) {
-      meta.pending = {};
-    }
-
-    return meta;
   }
 
   /**
    *
    * @private
-   * @param {string} endpoint
-   * @param {Object} args
-   * @return {Array<string>}
-   */
-  _populateIdentifier(endpoint, args) {
-    const regex = new RegExp(`{${this._multiQueryIdentifier || this._identifier}}`);
-    const match = endpoint.match(regex);
-    const urls = [];
-
-    if (match) {
-      const idValues = args[this._identifier];
-      const multiQuery = !!this._multiQueryLimit;
-
-      if (!multiQuery) {
-        idValues.forEach((value) => {
-          urls.push({ url: endpoint.replace(regex, value), values: value });
-        });
-      } else if (idValues.length <= this._multiQueryLimit) {
-        urls.push({ url: endpoint.replace(regex, idValues.join(',')), values: idValues });
-      } else {
-        this._batchValues(idValues).forEach((batch) => {
-          urls.push({ url: endpoint.replace(regex, batch.join(',')), values: batch });
-        });
-      }
-    }
-
-    return urls;
-  }
-
-  /**
-   *
-   * @private
-   * @param {string} endpoint
-   * @param {Object} args
-   * @return {string}
-   */
-  _populateQueryString(endpoint, args) {
-    const regex = /\?(.*)?/;
-    const match = endpoint.match(regex);
-
-    if (!match) {
-      return endpoint;
-    }
-
-    const queryString = match[1];
-    const params = queryString.split('&');
-    let paramCount = 0;
-    let populatedQueryString = '';
-
-    Object.keys(args).forEach((key) => {
-      const param = params.find(value => !!value.match(new RegExp(`${key}=.*`)));
-
-      if (!param || !param.match(new RegExp(`{.*(${key}|${args[key]}).*}`))) {
-        return;
-      }
-
-      paramCount += 1;
-      const prefix = paramCount === 1 ? '?' : '&';
-      populatedQueryString += `${prefix}${key}=${args[key]}`;
-    });
-
-    return endpoint.replace(regex, populatedQueryString);
-  }
-
-  /**
-   *
-   * @private
-   * @param {string} endpoint
-   * @param {string} type
-   * @return {string}
-   */
-  _populateType(endpoint, type) {
-    const key = this._typeAlias || 'type';
-    return endpoint.replace(new RegExp(`{${key}}`), type);
-  }
-
-  /**
-   *
-   * @private
-   * @param {Object|Array<Object>} data
-   * @param {string|Array<string>} values
+   * @param {string} path
+   * @param {Object} resource
+   * @param {Object} queryParams
    * @param {Object} context
-   * @param {string} type
-   * @return {void}
+   * @return {Object}
    */
-  async _resolveRequests({ data, errors }, values, { fetchID, requestID }, type) {
-    const { fetching, pending } = this._getRequestMeta(requestID, type);
-    data = castArray(data);
-    values = castArray(values);
+  _setContext(path, resource, queryParams, context) {
+    if (resource) {
+      const key = Object.keys(resource)[0];
+      resource = { active: castArray(resource[key]), batched: [], pending: [], key };
+    }
 
-    values.forEach((value) => {
-      const index = fetching.findIndex(obj => obj.value === value);
-
-      if (index !== -1) {
-        fetching.splice(index, 1);
-      }
-
-      let res;
-
-      if (errors) {
-        res = { errors };
-      } else {
-        res = data.find(obj => obj[this._identifier] === value);
-      }
-
-      if (pending[value]) {
-        for (let i = pending[value].length - 1; i >= 0; i -= 1) {
-          if (pending[value][i].fetchID === fetchID) {
-            pending[value][i].resolve(res);
-            pending[value].splice(i, 1);
-          }
-        }
-      }
-    });
+    return { ...{ path, resource, queryParams, fetchID: uuidV1() }, ...context };
   }
 
   /**
@@ -563,76 +517,55 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Object} args
-   * @param {Object} context
-   * @return {void}
-   */
-  _parseIdentifier(args, context) {
-    let idValues = args[this._identifier];
-    idValues = castArray(idValues);
-    args[this._identifier] = idValues;
-    context.values = [...idValues];
-  }
-
-  /**
-   *
-   * @private
    * @param {Object} ids
    * @param {string} requestID
-   * @param {string} type
+   * @param {string} path
    * @return {void}
    */
-  _updatePendingRequests({ fetchID, value }, requestID, type) {
-    const { pending } = this._getRequestMeta(requestID, type);
+  _updatePendingRequests({ fetchID, resource }, requestID, path) {
+    const { pending } = this._getTracker(requestID, path);
 
-    if (value && pending[value]) {
-      pending[value].forEach((obj) => {
-        if (fetchID) {
-          obj.fetchID = fetchID;
-        }
+    if (pending[resource]) {
+      pending[resource].forEach((obj) => {
+        obj.fetchID = fetchID;
       });
     }
   }
 
   /**
    *
-   * @param {Object} args
-   * @param {Object} [context]
+   * @param {Object} config
    * @return {Promise}
    */
-  async fetch(args, context = {}) {
-    const _context = { ...{ fetchID: uuidV1(), requestID: null }, ...context };
-    this._parseIdentifier(args, _context);
-    const type = args.type;
-    let { promises = [], skip } = this._dedupRequest(args, _context, type);
+  async get({ path, resource = null, queryParams = null, options = {}, context = {} } = {}) {
+    if (!path) return null;
+    context = this._setContext(path, resource, queryParams, context);
+    const check = await this._checkCache(context);
+    if (check.skip) return check.data;
+    let promises, skip;
 
-    const res = await new Promise((resolve) => {
-      setImmediate(() => {
-        resolve(this._batchRequest(args, _context, type));
+    if (resource) {
+      const dedup = this._dedupRequest(context);
+
+      const batch = await new Promise((resolve) => {
+        setImmediate(() => {
+          resolve(this._batchRequest(context, options));
+        });
       });
-    });
 
-    if (res.promises.length) {
-      promises = promises.concat(res.promises);
-    }
-
-    if (res.skip) {
-      skip = res.skip;
+      promises = [...dedup.promises, ...batch.promises];
+      skip = batch.skip;
     }
 
     if (!skip) {
-      const urls = this._buildURLs(args, type);
+      const endpoints = this._buildEndpoints(context, options);
 
-      if (!urls.length) {
-        return null;
-      }
-
-      urls.forEach(({ url, values }) => {
-        promises.push(this._fetch(url, values, _context, type));
+      endpoints.forEach(({ endpoint, values }) => {
+        promises.push(this._fetch(endpoint, values, context, options));
       });
     }
 
-    const data = await Promise.all(promises);
-    return flatten(data);
+    const data = flatten(await Promise.all(promises));
+    return [...data, ...check.data];
   }
 }
