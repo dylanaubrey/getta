@@ -71,7 +71,7 @@ export default class RestClient {
      *
      * @type {Object}
      */
-    headers = null,
+    headers = {},
     /**
      * Whether to create a new instance of a
      * client or return the existing instance.
