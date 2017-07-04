@@ -352,16 +352,16 @@ export default class RestClient {
     }
 
     let body = await res.json();
-    body = isFunction(this._bodyParser) ? this._bodyParser(body, context) : body;
+    const bodyParser = options.bodyParser || this._bodyParser;
+    body = isFunction(bodyParser) ? bodyParser(body, context) : body;
 
     if (body.errors) {
       this._resolveRequests({ errors: body.errors }, values, context);
       return { errors: body.errors };
     }
 
-    const data = isFunction(this._dataParser)
-        ? this._dataParser(body.data, context, res.headers) : body.data;
-
+    const dataParser = options.dataParser || this._dataParser;
+    const data = isFunction(dataParser) ? dataParser(body.data, context, res.headers) : body.data;
     if (!values) return data;
     this._resolveRequests({ data }, values, context);
     return this._resolveResource(data, context);
