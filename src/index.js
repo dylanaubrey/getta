@@ -365,7 +365,7 @@ export default class RestClient {
     const dataParser = options.dataParser || this._dataParser;
     const data = isFunction(dataParser) ? dataParser(body.data, context, res.headers) : body.data;
     if (!values) return data;
-    this._resolveRequests({ data }, values, context);
+    this._resolveRequests({ data }, values, context, res.headers);
     return this._resolveResource(data, context);
   }
 
@@ -420,9 +420,12 @@ export default class RestClient {
    * @param {Object|Array<Object>} res
    * @param {string|Array<string>} values
    * @param {Object} context
+   * @param {Headers} headers
    * @return {void}
    */
-  async _resolveRequests(res, values, { fetchID, requestID, path, resource, queryParams }) {
+  async _resolveRequests(
+    res, values, { fetchID, requestID, path, resource, queryParams }, headers,
+  ) {
     if (!values) return;
     const { fetching, pending } = this._getTracker(requestID, path);
     const data = castArray(res.data);
@@ -435,7 +438,7 @@ export default class RestClient {
       const match = res.errors
           ? { errors: res.errors } : data.find(obj => obj[resource.key] === value);
 
-      if (!res.errors && match) this._setCache(path, value, queryParams, match);
+      if (!res.errors && match) this._setCache(path, value, queryParams, match, headers);
       if (!pending[value]) return;
 
       for (let i = pending[value].length - 1; i >= 0; i -= 1) {
@@ -473,9 +476,10 @@ export default class RestClient {
    * @param {string} value
    * @param {Object} queryParams
    * @param {Object} data
+   * @param {Headers} headers
    * @return {Promise}
    */
-  async _setCache(path, value, queryParams, data) {
+  async _setCache(path, value, queryParams, data, headers) {
     if (this._disableCaching) return;
 
     const endpoints = this._buildEndpoints({
@@ -483,7 +487,7 @@ export default class RestClient {
     }, { batch: false });
 
     try {
-      this._cache.set(endpoints[0].endpoint, data);
+      this._cache.set(endpoints[0].endpoint, data, { cacheControl: headers.get('Cache-Control') });
     } catch (err) {
       logger.error(err);
     }
@@ -573,5 +577,24 @@ export default class RestClient {
 
     const data = flatten(await Promise.all(promises));
     return [...data, ...check.data];
+  }
+
+  /**
+   *
+   * @param {string} method
+   * @param {string} name
+   * @param {Object} baseConfig
+   * @return {void}
+   */
+  shortcut(method, name, baseConfig) {
+    const methods = ['get', 'post', 'put', 'delete'];
+    if (!methods.find(value => value === method)) return;
+
+    /**
+     *
+     * @param {Object} [config]
+     * @return {void}
+     */
+    this[name] = (config = {}) => this[method]({ ...baseConfig, ...config });
   }
 }

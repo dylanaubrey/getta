@@ -17,8 +17,13 @@ export const productArgs = function productArgs(resource) {
 /**
  *
  * @param {string} id
+ * @param {string} name
  * @return {Object}
  */
-export const mockFetch = function mockFetch(id) {
-  return fetchMock.mock(data[id].url, { body: data[id].body });
+export const mockFetch = function mockFetch(id, name) {
+  return fetchMock.mock(
+    data[id].url,
+    { body: data[id].body, headers: { 'Cache-Control': 'public, max-age=60', hash: true } },
+    { name },
+  );
 };
