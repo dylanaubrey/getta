@@ -3,6 +3,9 @@ import { castArray, flatten, isFunction } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
+require('es6-promise').polyfill();
+require('isomorphic-fetch');
+
 let instance;
 
 /**
@@ -93,7 +96,7 @@ export default class RestClient {
     }
 
     if (!baseURL) {
-      throw new Error('baseURL is mandatory properties for a rest client.');
+      throw new Error('baseURL is a mandatory property for a rest client.');
     }
 
     this._baseURL = baseURL;
@@ -123,13 +126,13 @@ export default class RestClient {
     const activeMatch = (index !== -1) ? tracker.active.splice(index, 1)[0] : null;
     const activeFetchID = activeMatch ? activeMatch.fetchID : fetchID;
     const fetchMatch = tracker.fetching.find(obj => obj.value === resource);
+    const promises = [];
 
     if (!fetchMatch) {
       tracker.fetching.push({ fetchID: activeFetchID, value: resource });
-      return {};
+      return { promises };
     }
 
-    const promises = [];
     if (!tracker.pending[resource]) tracker.pending[resource] = [];
 
     promises.push(this._setPendingRequest(
@@ -291,13 +294,12 @@ export default class RestClient {
    */
   _dedupRequest({ path, resource, fetchID, requestID }) {
     const tracker = this._getTracker(requestID, path);
+    const promises = [];
 
     if (!tracker.active.length) {
       tracker.active = resource.active.map(value => ({ fetchID, value }));
-      return {};
+      return { promises };
     }
-
-    const promises = [];
 
     for (let i = resource.active.length - 1; i >= 0; i -= 1) {
       const match = tracker.active.find(obj => obj.value === resource.active[i]);
@@ -382,7 +384,7 @@ export default class RestClient {
     if (!tracker.active) tracker.active = [];
     if (!tracker.fetching) tracker.fetching = [];
     if (!tracker.pending) tracker.pending = {};
-    return tracker[path];
+    return tracker;
   }
 
   /**
@@ -453,6 +455,7 @@ export default class RestClient {
    * @return {Object|Array<Object>}
    */
   _resolveResource(data, { resource }) {
+    data = castArray(data);
     const filtered = [];
 
     resource.active.forEach((value) => {
@@ -467,17 +470,20 @@ export default class RestClient {
    *
    * @private
    * @param {string} path
-   * @param {string} resource
+   * @param {string} value
    * @param {Object} queryParams
    * @param {Object} data
    * @return {Promise}
    */
-  async _setCache(path, resource, queryParams, data) {
+  async _setCache(path, value, queryParams, data) {
     if (this._disableCaching) return;
-    const endpoints = this._buildEndpoints({ path, resource, queryParams }, { batch: false });
+
+    const endpoints = this._buildEndpoints({
+      path, resource: { active: [value] }, queryParams,
+    }, { batch: false });
 
     try {
-      this._cache.set(endpoints[0], data);
+      this._cache.set(endpoints[0].endpoint, data);
     } catch (err) {
       logger.error(err);
     }
@@ -561,7 +567,7 @@ export default class RestClient {
       const endpoints = this._buildEndpoints(context, options);
 
       endpoints.forEach(({ endpoint, values }) => {
-        promises.push(this._fetch(endpoint, values, context, options));
+        promises.push(this._fetch('GET', endpoint, values, context, options));
       });
     }
 

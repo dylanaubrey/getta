@@ -7,37 +7,17 @@ export default {
   '136-7317': {
     url: 'https://www.tesco.com/direct/rest/content/catalog/product/136-7317',
     body: PRD_136_7317,
-    resp: {
-      internalError: { status: 500, responseText: 'Internal Server Error' },
-      notFound: { status: 404, responseText: 'Not Found' },
-      success: { status: 200, responseText: JSON.stringify(PRD_136_7317) },
-    },
   },
   '180-1387': {
     url: 'https://www.tesco.com/direct/rest/content/catalog/product/180-1387',
     body: PRD_180_1387,
-    resp: {
-      internalError: { status: 500, responseText: 'Internal Server Error' },
-      notFound: { status: 404, responseText: 'Not Found' },
-      success: { status: 200, responseText: JSON.stringify(PRD_180_1387) },
-    },
   },
   '183-3905': {
     url: 'https://www.tesco.com/direct/rest/content/catalog/product/183-3905',
     body: PRD_183_3905,
-    resp: {
-      internalError: { status: 500, responseText: 'Internal Server Error' },
-      notFound: { status: 404, responseText: 'Not Found' },
-      success: { status: 200, responseText: JSON.stringify(PRD_183_3905) },
-    },
   },
   '202-3315': {
     url: 'https://www.tesco.com/direct/rest/content/catalog/product/202-3315',
     body: PRD_202_3315,
-    resp: {
-      internalError: { status: 500, responseText: 'Internal Server Error' },
-      notFound: { status: 404, responseText: 'Not Found' },
-      success: { status: 200, responseText: JSON.stringify(PRD_202_3315) },
-    },
   },
 };

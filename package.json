@@ -24,7 +24,7 @@
   "scripts": {
     "build": "npm run test && npm run transpile",
     "clean": "rimraf lib/*",
-    "coverage": "cross-env BABEL_ENV=test nyc mocha test/specs/index.js",
+    "coverage": "cross-env BABEL_ENV=test ISO_LOG=false nyc mocha test/specs/index.js",
     "lint": "eslint . --fix",
     "publish:pkg": "npm run build && npm publish",
     "test": "npm run lint && npm run coverage",
@@ -58,12 +58,11 @@
     "eslint-plugin-import": "^2.2.0",
     "eslint-plugin-jsx-a11y": "^5.0.1",
     "eslint-plugin-react": "^7.0.1",
-    "express": "^4.15.3",
+    "fetch-mock": "^5.12.1",
     "mocha": "^3.4.2",
     "nyc": "^11.0.3",
     "rimraf": "^2.6.1",
     "sinon": "^2.3.5",
-    "sinon-chai": "^2.11.0",
-    "supertest": "^3.0.0"
+    "sinon-chai": "^2.11.0"
   }
 }
