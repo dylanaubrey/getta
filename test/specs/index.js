@@ -50,7 +50,8 @@ describe('when one resource is requested successfully', () => {
   const path = 'content/catalog/product';
 
   before(() => {
-    fetchMock = mockFetch(resource, path);
+    const mock = mockFetch({ baseURL, path, resource });
+    fetchMock = mock.fetchMock;
     process.env.WEB_ENV = true;
     getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
   });
@@ -85,7 +86,8 @@ describe('when one resource is requested successfully using a shortcut', () => {
   const path = 'content/catalog/product';
 
   before(() => {
-    fetchMock = mockFetch(resource, path);
+    const mock = mockFetch({ baseURL, path, resource });
+    fetchMock = mock.fetchMock;
     process.env.WEB_ENV = true;
     getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
 
@@ -119,12 +121,14 @@ describe('when one resource is requested successfully using a shortcut', () => {
 });
 
 describe('when one resource is successfully requested from cache', () => {
-  let fetchMock, getta, res;
+  let fetchMock, getta, res, urls;
   const resource = '136-7317';
   const path = 'content/catalog/product';
 
   before(async () => {
-    fetchMock = mockFetch(resource, path);
+    const mock = mockFetch({ baseURL, path, resource });
+    fetchMock = mock.fetchMock;
+    urls = mock.urls;
     process.env.WEB_ENV = true;
     getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
 
@@ -151,6 +155,40 @@ describe('when one resource is successfully requested from cache', () => {
   });
 
   it('should not have fetched the data from the server', async () => {
-    expect(fetchMock.called(path)).to.be.false();
+    expect(fetchMock.called(urls[0])).to.be.false();
+  });
+});
+
+describe('when multiple resources are successfully requested in a batch', () => {
+  let fetchMock, getta, res;
+  const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+  const path = 'content/catalog/product';
+
+  before(() => {
+    const mock = mockFetch({ baseURL, batch: true, path, resource });
+    fetchMock = mock.fetchMock;
+    process.env.WEB_ENV = true;
+    getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
+
+    getta.shortcut('get', 'getProducts', {
+      path, options: { batch: true, bodyParser: body => ({ data: body }) },
+    });
+  });
+
+  after(() => {
+    fetchMock.restore();
+    delete process.env.WEB_ENV;
+  });
+
+  beforeEach(async () => {
+    res = await getta.getProducts({ resource: { id: resource } });
+  });
+
+  afterEach(async () => {
+    await getta._cache.clear();
+  });
+
+  it('should return the requested data', () => {
+    expect(res.length).to.eql(4);
   });
 });

@@ -256,7 +256,8 @@ export default class RestClient {
       promises.push(this._checkEntry(endpoint, values, resource));
     });
 
-    const data = await Promise.all(promises);
+    let data = await Promise.all(promises);
+    data = data.filter(value => !!value);
     const skip = (resource && !resource.active.length) || (!resource && data.length);
     return { data, skip };
   }
@@ -283,7 +284,7 @@ export default class RestClient {
       if (index !== -1) resource.active.splice(index, 1);
     }
 
-    return data || null;
+    return data;
   }
 
   /**
