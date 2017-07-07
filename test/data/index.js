@@ -21,3 +21,11 @@ export default {
     body: PRD_202_3315,
   },
 };
+
+/**
+ *
+ * @return {Array<Object>}
+ */
+export const getValues = function getValues() {
+  return [PRD_136_7317, PRD_180_1387, PRD_183_3905, PRD_202_3315];
+};

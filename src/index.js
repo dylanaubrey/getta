@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, flatten, isFunction } from 'lodash';
+import { castArray, cloneDeep, flatten, isFunction } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
@@ -505,6 +505,7 @@ export default class RestClient {
    */
   _setContext(path, resource, queryParams, context) {
     if (resource) {
+      resource = cloneDeep(resource);
       const key = Object.keys(resource)[0];
       resource = { active: castArray(resource[key]), batched: [], pending: [], key };
     }
