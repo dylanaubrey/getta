@@ -1,5 +1,6 @@
 import chai, { expect } from 'chai';
 import dirtyChai from 'dirty-chai';
+import { flatten } from 'lodash';
 import sinonChai from 'sinon-chai';
 import data, { getValues } from '../data';
 
@@ -226,6 +227,53 @@ describe('when batched resources are returned from the server and cache', () => 
     const entry = await getta._cache.get(`content/catalog/product/${cacheResource}`);
     expect(entry).to.eql(data[cacheResource].body);
     await getta.getProducts({ resource: { id: resource } });
+    expect(await getta._cache.size()).to.eql(4);
+    const promises = [];
+
+    resource.forEach((value) => {
+      promises.push(getta._cache.get(`content/catalog/product/${value}`));
+    });
+
+    const entries = await Promise.all(promises);
+    expect(entries.sort(sortValues)).to.eql(getValues());
+  });
+});
+
+describe('when separate resources are batched and returned from the server', () => {
+  let fetchMock, getta, res;
+  const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+  const path = 'content/catalog/product';
+
+  before(() => {
+    const setup = setupTest({ batch: true, path, resource });
+    fetchMock = setup.fetchMock;
+    getta = setup.getta;
+  });
+
+  after(() => {
+    fetchMock.restore();
+  });
+
+  beforeEach(async () => {
+    const promises = [];
+
+    resource.forEach((value) => {
+      promises.push(getta.getProducts({ resource: { id: value } }));
+    });
+
+    res = flatten(await Promise.all(promises));
+  });
+
+  afterEach(async () => {
+    await getta._cache.clear();
+    fetchMock.reset();
+  });
+
+  it('should return the requested data', async () => {
+    expect(res.sort(sortValues)).to.eql(getValues());
+  });
+
+  it('should cache each data resource against its respective endpoint', async () => {
     expect(await getta._cache.size()).to.eql(4);
     const promises = [];
 

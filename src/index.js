@@ -33,7 +33,7 @@ export default class RestClient {
      *
      * @type {number}
      */
-    batchLimit = '20',
+    batchLimit = 20,
     /**
      *
      * Optional function used to parse the body of
@@ -165,7 +165,7 @@ export default class RestClient {
 
     if (!skip && batch) {
       const limit = batchLimit || this._batchLimit;
-      resource.batched = resource.active;
+      resource.batched = [...resource.active];
 
       if (tracker.active.length && resource.batched.length < limit) {
         for (let i = tracker.active.length - 1; i >= 0; i -= 1) {
@@ -405,10 +405,10 @@ export default class RestClient {
         endpoints.push({ endpoint: endpoint.replace(regex, value), values: value });
       });
     } else if (resource.length <= this._batchLimit) {
-      endpoints.push({ endpoint: endpoint.replace(regex, resource.join(',')), values: resource });
+      endpoints.push({ endpoint: endpoint.replace(regex, resource.sort().join(',')), values: resource });
     } else {
       this._batchResource(resource).forEach((group) => {
-        endpoints.push({ endpoint: endpoint.replace(regex, group.join(',')), values: group });
+        endpoints.push({ endpoint: endpoint.replace(regex, group.sort().join(',')), values: group });
       });
     }
 
@@ -444,7 +444,7 @@ export default class RestClient {
 
       for (let i = pending[value].length - 1; i >= 0; i -= 1) {
         if (pending[value][i].fetchID === fetchID) {
-          pending[value][i].resolve(res);
+          pending[value][i].resolve(match);
           pending[value].splice(i, 1);
         }
       }
