@@ -18,28 +18,10 @@ export const cachemapOptions = { localStorageOptions: { mock: localStorageMock }
 
 /**
  *
- * @param {Object} queryParams
- * @return {string}
- */
-export const buildQueryString = function buildQueryString(queryParams) {
-  let queryString = '';
-  let paramCount = 0;
-
-  Object.keys(queryParams).forEach((key) => {
-    paramCount += 1;
-    const prefix = paramCount === 1 ? '?' : '&';
-    queryString += `${prefix}${key}=${queryParams[key]}`;
-  });
-
-  return queryString;
-};
-
-/**
- *
  * @param {Object} config
  * @return {Object}
  */
-export const mockFetch = function mockFetch({ batch, path, queryParams, resource }) {
+export const mockFetch = function mockFetch({ batch, path, resource }) {
   let body, ids;
   const urls = [];
 
@@ -57,15 +39,14 @@ export const mockFetch = function mockFetch({ batch, path, queryParams, resource
   }
 
   const headers = { 'Cache-Control': 'public, max-age=60' };
-  queryParams = queryParams ? buildQueryString(queryParams) : '';
 
   if (!isArray(resource) || batch) {
-    const url = `${baseURL}${path}/${ids}${queryParams}`;
+    const url = `${baseURL}${path}/${ids}`;
     urls.push(url);
     fetchMock.mock(url, { body, headers }, { name: url });
   } else {
     resource.forEach((value) => {
-      urls.push(`${data[value].url}${queryParams}`);
+      urls.push(data[value].url);
 
       fetchMock.mock(
         data[value].url, { body: data[value].body, headers }, { name: data[value].url },
@@ -94,12 +75,12 @@ export const productArgs = function productArgs(resource) {
  * @param {Object} config
  * @return {Object}
  */
-export const setupTest = function setupTest({ batch, path, queryParams, resource }) {
-  const { urls } = mockFetch({ batch, path, queryParams, resource });
+export const setupTest = function setupTest({ batch, path, resource }) {
+  const { urls } = mockFetch({ batch, path, resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
 
   getta.shortcut('get', 'getProducts', {
-    path, options: { batch, bodyParser: body => ({ data: body }), queryParams },
+    path, options: { batch, bodyParser: body => ({ data: body }) },
   });
 
   return { fetchMock, getta, urls };
