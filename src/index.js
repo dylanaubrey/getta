@@ -47,20 +47,20 @@ export default class RestClient {
     bodyParser = null,
     /**
      *
-     * Optional function used to parse the data of
-     * a response prior the client returning it.
-     *
-     * @type {Function}
-     */
-    dataParser = null,
-    /**
-     *
      * Optional configuration to be passed to the
      * cachemap module.
      *
      * @type {Object}
      */
     cachemapOptions,
+    /**
+     *
+     * Optional function used to parse the data of
+     * a response prior the client returning it.
+     *
+     * @type {Function}
+     */
+    dataParser = null,
     /**
      *
      * Disables caching of responses against request url.
@@ -82,6 +82,12 @@ export default class RestClient {
      * @type {boolean}
      */
     newInstance = false,
+    /**
+     * Response stream reader to use.
+     *
+     * @type {string}
+     */
+    streamReader = 'json',
     /**
      * Optional reference object used to store
      * request information against a unique
@@ -106,6 +112,7 @@ export default class RestClient {
     this._dataParser = dataParser;
     this._disableCaching = disableCaching;
     this._headers = headers;
+    this._streamReader = streamReader;
     this._tracker = tracker;
     instance = this;
     return instance;
@@ -342,10 +349,11 @@ export default class RestClient {
 
     try {
       logger.info(`${this._name} fetching: ${endpoint}`, context);
-      if (content && !isString(content)) content = JSON.stringify(content);
+      let _content;
+      if (content && !isString(content)) _content = JSON.stringify(content);
 
       res = await fetch(`${this._baseURL}${endpoint}`, {
-        body: content, headers: new Headers(options.headers), method,
+        body: _content, headers: new Headers(options.headers), method,
       });
     } catch (err) {
       errors = err;
@@ -353,7 +361,7 @@ export default class RestClient {
     }
 
     if (errors) return { errors };
-    let body = await res.json();
+    let body = await res[options.streamReader]();
     body = isFunction(options.bodyParser) ? options.bodyParser(body, context) : body;
     if (body.errors) return { errors: body.errors };
 
@@ -376,12 +384,12 @@ export default class RestClient {
     const res = await this._fetch('GET', endpoint, context, options);
     const data = res.data ? castArray(res.data) : [];
     const errors = res.errors;
-    values = values ? castArray(values) : [];
-    this._resolveRequests({ data, errors }, values, context);
+    const _values = values ? castArray(values) : [];
+    this._resolveRequests({ data, errors }, _values, context);
     if (errors) return { errors };
 
     this._setCache(
-      values, data, res.headers, context.path, context.queryParams, context.resource.key,
+      _values, data, res.headers, context.path, context.queryParams, context.resource.key,
     );
 
     return this._resolveResource(data, context.resource.key, context.resource.active);
@@ -553,18 +561,20 @@ export default class RestClient {
    * @return {Object}
    */
   _setContext(method, path, resource, queryParams, context) {
-    if (resource) {
-      resource = cloneDeep(resource);
-      const key = Object.keys(resource)[0];
+    let _resource = resource;
+
+    if (_resource) {
+      _resource = cloneDeep(_resource);
+      const key = Object.keys(_resource)[0];
 
       if (method === 'GET') {
-        resource = { active: castArray(resource[key]), batched: [], key, pending: [] };
+        _resource = { active: castArray(_resource[key]), batched: [], key, pending: [] };
       } else {
-        resource = { key, values: castArray(resource[key]) };
+        _resource = { key, values: castArray(_resource[key]) };
       }
     }
 
-    return { ...{ path, resource, queryParams, fetchID: uuidV1() }, ...context };
+    return { ...{ path, resource: _resource, queryParams, fetchID: uuidV1() }, ...context };
   }
 
   /**
@@ -578,6 +588,7 @@ export default class RestClient {
       bodyParser: this._bodyParser,
       dataParser: this._dataParser,
       headers: this._headers,
+      streamReader: this._streamReader,
     };
 
     return merge(defaultOptions, options);
