@@ -146,7 +146,13 @@ export default class RestClient {
    *
    * @private
    * @param {Object} context
+   * @param {string} context.path
+   * @param {Object} context.resource
+   * @param {string} context.fetchID
+   * @param {string} context.requestID
    * @param {Object} options
+   * @param {boolean} options.batch
+   * @param {number} options.batchLimit
    * @return {Object}
    */
   _batchRequest({ path, resource, fetchID, requestID }, { batch, batchLimit }) {
@@ -230,7 +236,12 @@ export default class RestClient {
    *
    * @private
    * @param {Object} context
+   * @param {string} context.path
+   * @param {Array<string>} context.resource
+   * @param {Object} context.queryParams
    * @param {Object} [options]
+   * @param {boolean} [options.batch]
+   * @param {number} [options.batchLimit]
    * @return {Array<Object>}
    */
   _buildEndpoints({ path, resource, queryParams }, { batch, batchLimit } = {}) {
@@ -244,6 +255,9 @@ export default class RestClient {
    *
    * @private
    * @param {Object} context
+   * @param {string} context.path
+   * @param {Object} context.resource
+   * @param {Object} context.queryParams
    * @return {Promise}
    */
   async _checkCache({ path, resource, queryParams }) {
@@ -294,6 +308,10 @@ export default class RestClient {
    *
    * @private
    * @param {Object} context
+   * @param {string} context.path
+   * @param {Object} context.resource
+   * @param {string} context.fetchID
+   * @param {string} context.requestID
    * @return {Object}
    */
   _dedupRequest({ path, resource, fetchID, requestID }) {
@@ -585,7 +603,8 @@ export default class RestClient {
    *
    * @private
    * @param {Array<Function>} pending
-   * @param {string} context
+   * @param {Object} context
+   * @param {string} context.fetchID
    * @return {Promise}
    */
   _setPendingRequest(pending, { fetchID }) {
@@ -597,7 +616,9 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Object} ids
+   * @param {Object} context
+   * @param {string} context.fetchID
+   * @param {string} context.resource
    * @param {string} requestID
    * @param {string} path
    * @return {void}
@@ -655,8 +676,10 @@ export default class RestClient {
       });
     }
 
-    const data = flatten(await Promise.all(promises));
-    return [...data, ...check.data];
+    let data = flatten(await Promise.all(promises));
+    if (check.data.length) data = [...data, ...check.data];
+    data = data.filter(value => !!value);
+    return data;
   }
 
   /**
@@ -681,7 +704,9 @@ export default class RestClient {
       promises.push(this._post(endpoint, _context, _options, body));
     });
 
-    return flatten(await Promise.all(promises));
+    let data = flatten(await Promise.all(promises));
+    data = data.filter(value => !!value);
+    return data;
   }
 
   /**

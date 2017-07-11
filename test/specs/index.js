@@ -7,9 +7,10 @@ import data, { getValues } from '../data';
 import {
   baseURL,
   cachemapOptions,
-  mockFetch,
+  mockGet,
   productArgs,
-  setupTest,
+  setupGet,
+  setupPost,
   sortValues,
 } from '../helpers';
 
@@ -57,7 +58,7 @@ describe('the .get() method', () => {
     const resource = '136-7317';
 
     before(() => {
-      const setup = setupTest({ resource });
+      const setup = setupGet({ resource });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
@@ -90,7 +91,7 @@ describe('the .get() method', () => {
     const resource = '136-7317';
 
     before(() => {
-      const setup = setupTest({ resource });
+      const setup = setupGet({ resource });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
@@ -123,7 +124,7 @@ describe('the .get() method', () => {
     const resource = '136-7317';
 
     before(async () => {
-      const setup = setupTest({ resource });
+      const setup = setupGet({ resource });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
       urls = setup.urls;
@@ -154,7 +155,7 @@ describe('the .get() method', () => {
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
     before(() => {
-      const setup = setupTest({ batch: true, resource });
+      const setup = setupGet({ batch: true, resource });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
@@ -194,8 +195,8 @@ describe('the .get() method', () => {
     const serverResource = ['180-1387', '183-3905', '202-3315'];
 
     before(() => {
-      mockFetch({ batch: false, resource: cacheResource });
-      const setup = setupTest({ batch: true, resource: serverResource });
+      mockGet({ batch: false, resource: cacheResource });
+      const setup = setupGet({ batch: true, resource: serverResource });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
@@ -240,7 +241,7 @@ describe('the .get() method', () => {
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
     before(() => {
-      const setup = setupTest({ batch: true, resource });
+      const setup = setupGet({ batch: true, resource });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
@@ -283,5 +284,37 @@ describe('the .get() method', () => {
 });
 
 describe('the .post() method', () => {
-  // TODO
+  describe('when one resource is created and returned from the server', () => {
+    let fetchMock, getta, res;
+    const resource = '136-7317';
+
+    before(() => {
+      const setup = setupPost({ resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.postProducts({ body: { id: resource }, resource: { id: resource } });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the created data', async () => {
+      expect(res[0]).to.eql(data[resource].body);
+    });
+
+    it('should cache the returned data against its .get() endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+      const entry = await getta._cache.get(`content/catalog/product/${resource}`);
+      expect(entry).to.eql(data[resource].body);
+    });
+  });
 });
