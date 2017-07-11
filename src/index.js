@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, cloneDeep, flatten, isFunction, isString } from 'lodash';
+import { castArray, cloneDeep, flatten, isFunction, isString, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
@@ -164,10 +164,9 @@ export default class RestClient {
     const skip = !resource.active.length;
 
     if (!skip && batch) {
-      const limit = batchLimit || this._batchLimit;
       resource.batched = [...resource.active];
 
-      if (tracker.active.length && resource.batched.length < limit) {
+      if (tracker.active.length && resource.batched.length < batchLimit) {
         for (let i = tracker.active.length - 1; i >= 0; i -= 1) {
           resource.batched.push(tracker.active[i].value);
           tracker.fetching.push({ fetchID, value: tracker.active[i].value });
@@ -177,7 +176,7 @@ export default class RestClient {
           );
 
           tracker.active.splice(i, 1);
-          if (resource.batched.length === limit) break;
+          if (resource.batched.length === batchLimit) break;
         }
       }
     }
@@ -189,19 +188,20 @@ export default class RestClient {
    *
    * @private
    * @param {Array<string>} resource
+   * @param {number} batchLimit
    * @return {Array<Array>}
    */
-  _batchResource(resource) {
+  _batchResource(resource, batchLimit) {
     const batches = [];
-    const countLimit = Math.ceil(resource.length / this._batchLimit);
+    const countLimit = Math.ceil(resource.length / batchLimit);
     let count = 0;
     let start = 0;
-    let stop = this._batchLimit;
+    let stop = batchLimit;
 
     do {
       batches.push(resource.slice(start, stop));
-      start += this._batchLimit;
-      stop += this._batchLimit;
+      start += batchLimit;
+      stop += batchLimit;
       count += 1;
     } while (count < countLimit);
 
@@ -234,11 +234,11 @@ export default class RestClient {
    * @param {Object} [options]
    * @return {Array<Object>}
    */
-  _buildEndpoints({ path, resource, queryParams }, { batch } = {}) {
+  _buildEndpoints({ path, resource, queryParams }, { batch, batchLimit } = {}) {
     let endpoint = resource ? `${path}/{resource}` : path;
     if (queryParams) endpoint += this._buildQueryString(queryParams);
     if (!resource) return [{ endpoint }];
-    return this._populateResource(endpoint, resource, batch);
+    return this._populateResource(endpoint, resource, batch, batchLimit);
   }
 
   /**
@@ -343,10 +343,9 @@ export default class RestClient {
     try {
       logger.info(`${this._name} fetching: ${endpoint}`, context);
       if (content && !isString(content)) content = JSON.stringify(content);
-      const headers = options.headers ? { ...this._headers, ...options.headers } : this._headers;
 
       res = await fetch(`${this._baseURL}${endpoint}`, {
-        body: content, headers: new Headers(headers), method,
+        body: content, headers: new Headers(options.headers), method,
       });
     } catch (err) {
       errors = err;
@@ -355,11 +354,12 @@ export default class RestClient {
 
     if (errors) return { errors };
     let body = await res.json();
-    const bodyParser = options.bodyParser || this._bodyParser;
-    body = isFunction(bodyParser) ? bodyParser(body, context) : body;
+    body = isFunction(options.bodyParser) ? options.bodyParser(body, context) : body;
     if (body.errors) return { errors: body.errors };
-    const dataParser = options.dataParser || this._dataParser;
-    const data = isFunction(dataParser) ? dataParser(body.data, context, res.headers) : body.data;
+
+    const data = isFunction(options.dataParser)
+        ? options.dataParser(body.data, context, res.headers) : body.data;
+
     return { data, headers: res.headers };
   }
 
@@ -410,10 +410,11 @@ export default class RestClient {
    * @private
    * @param {string} endpoint
    * @param {Array<string>} resource
-   * @param {boolean} [batch]
+   * @param {boolean} batch
+   * @param {number} batchLimit
    * @return {Array<Object>}
    */
-  _populateResource(endpoint, resource, batch = false) {
+  _populateResource(endpoint, resource, batch, batchLimit) {
     const regex = /{resource}/;
     const endpoints = [];
 
@@ -421,10 +422,10 @@ export default class RestClient {
       resource.forEach((value) => {
         endpoints.push({ endpoint: endpoint.replace(regex, value), values: value });
       });
-    } else if (resource.length <= this._batchLimit) {
+    } else if (resource.length <= batchLimit) {
       endpoints.push({ endpoint: endpoint.replace(regex, resource.sort().join(',')), values: resource });
     } else {
-      this._batchResource(resource).forEach((group) => {
+      this._batchResource(resource, batchLimit).forEach((group) => {
         endpoints.push({ endpoint: endpoint.replace(regex, group.sort().join(',')), values: group });
       });
     }
@@ -568,6 +569,22 @@ export default class RestClient {
 
   /**
    *
+   * @param {Object} options
+   * @return {Object}
+   */
+  _setOptions(options) {
+    const defaultOptions = {
+      batchLimit: this._batchLimit,
+      bodyParser: this._bodyParser,
+      dataParser: this._dataParser,
+      headers: this._headers,
+    };
+
+    return merge(defaultOptions, options);
+  }
+
+  /**
+   *
    * @private
    * @param {Array<Function>} pending
    * @param {string} context
@@ -609,22 +626,23 @@ export default class RestClient {
    */
   async get({ path, resource = null, queryParams = null, options = {}, context = {} } = {}) {
     if (!path) return null;
-    context = this._setContext('GET', path, resource, queryParams, context);
-    const check = await this._checkCache(context);
+    const _context = this._setContext('GET', path, resource, queryParams, context);
+    const _options = this._setOptions(options);
+    const check = await this._checkCache(_context);
     if (check.skip) return check.data;
     let endpointsResource, skip;
     let promises = [];
 
     if (resource) {
-      const dedup = this._dedupRequest(context);
+      const dedup = this._dedupRequest(_context);
 
       const batch = await new Promise((resolve) => {
         setImmediate(() => {
-          resolve(this._batchRequest(context, options));
+          resolve(this._batchRequest(_context, _options));
         });
       });
 
-      endpointsResource = options.batch ? context.resource.batched : context.resource.active;
+      endpointsResource = _options.batch ? _context.resource.batched : _context.resource.active;
       promises = [...dedup.promises, ...batch.promises];
       skip = batch.skip;
     }
@@ -632,10 +650,10 @@ export default class RestClient {
     if (!skip) {
       const endpoints = this._buildEndpoints({
         path, resource: endpointsResource, queryParams,
-      }, options);
+      }, _options);
 
       endpoints.forEach(({ endpoint, values }) => {
-        promises.push(this._get(endpoint, values, context, options));
+        promises.push(this._get(endpoint, values, _context, _options));
       });
     }
 
@@ -656,12 +674,13 @@ export default class RestClient {
    */
   async post({ path, resource = null, queryParams = null, body, options = {}, context = {} } = {}) {
     if (!path || !body) return null;
-    context = this._setContext('POST', path, resource, queryParams, context);
+    const _context = this._setContext('POST', path, resource, queryParams, context);
+    const _options = this._setOptions(options);
     const endpoints = this._buildEndpoints({ path, queryParams });
     const promises = [];
 
     endpoints.forEach(({ endpoint }) => {
-      promises.push(this._post(endpoint, context, options, body));
+      promises.push(this._post(endpoint, _context, _options, body));
     });
 
     return flatten(await Promise.all(promises));

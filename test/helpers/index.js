@@ -18,10 +18,16 @@ export const cachemapOptions = { localStorageOptions: { mock: localStorageMock }
 
 /**
  *
+ * @type {string}
+ */
+export const path = 'content/catalog/product';
+
+/**
+ *
  * @param {Object} config
  * @return {Object}
  */
-export const mockFetch = function mockFetch({ batch, path, resource }) {
+export const mockFetch = function mockFetch({ batch, resource }) {
   let body, ids;
   const urls = [];
 
@@ -63,11 +69,7 @@ export const mockFetch = function mockFetch({ batch, path, resource }) {
  * @return {Object}
  */
 export const productArgs = function productArgs(resource) {
-  return {
-    options: { batch: true, bodyParser: body => ({ data: body }) },
-    path: 'content/catalog/product',
-    resource,
-  };
+  return { options: { batch: true, bodyParser: body => ({ data: body }) }, path, resource };
 };
 
 /**
@@ -75,8 +77,8 @@ export const productArgs = function productArgs(resource) {
  * @param {Object} config
  * @return {Object}
  */
-export const setupTest = function setupTest({ batch, path, resource }) {
-  const { urls } = mockFetch({ batch, path, resource });
+export const setupTest = function setupTest({ batch, resource }) {
+  const { urls } = mockFetch({ batch, resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
 
   getta.shortcut('get', 'getProducts', {
