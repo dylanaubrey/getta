@@ -69,7 +69,7 @@ export const mockFetch = function mockFetch({ batch, resource }) {
  * @return {Object}
  */
 export const productArgs = function productArgs(resource) {
-  return { options: { batch: true, bodyParser: body => ({ data: body }) }, path, resource };
+  return { options: { batch: true }, path, resource };
 };
 
 /**

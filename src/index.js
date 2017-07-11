@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, cloneDeep, flatten, isFunction, isString, merge } from 'lodash';
+import { castArray, cloneDeep, flatten, isString, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
@@ -42,9 +42,10 @@ export default class RestClient {
      * on a property of 'data' and any errors returned
      * to be on a property of 'errors'.
      *
-     * @type {Function}
+     * @param {any} body
+     * @return {Object}
      */
-    bodyParser = null,
+    bodyParser = body => ({ data: body }),
     /**
      *
      * Optional configuration to be passed to the
@@ -53,14 +54,6 @@ export default class RestClient {
      * @type {Object}
      */
     cachemapOptions,
-    /**
-     *
-     * Optional function used to parse the data of
-     * a response prior the client returning it.
-     *
-     * @type {Function}
-     */
-    dataParser = null,
     /**
      *
      * Disables caching of responses against request url.
@@ -109,7 +102,6 @@ export default class RestClient {
     this._batchLimit = batchLimit;
     this._bodyParser = bodyParser;
     this._cache = new Cachemap(cachemapOptions);
-    this._dataParser = dataParser;
     this._disableCaching = disableCaching;
     this._headers = headers;
     this._streamReader = streamReader;
@@ -362,13 +354,9 @@ export default class RestClient {
 
     if (errors) return { errors };
     let body = await res[options.streamReader]();
-    body = isFunction(options.bodyParser) ? options.bodyParser(body, context) : body;
+    body = options.bodyParser(body, context);
     if (body.errors) return { errors: body.errors };
-
-    const data = isFunction(options.dataParser)
-        ? options.dataParser(body.data, context, res.headers) : body.data;
-
-    return { data, headers: res.headers };
+    return { data: body.data, headers: res.headers };
   }
 
   /**
@@ -586,7 +574,6 @@ export default class RestClient {
     const defaultOptions = {
       batchLimit: this._batchLimit,
       bodyParser: this._bodyParser,
-      dataParser: this._dataParser,
       headers: this._headers,
       streamReader: this._streamReader,
     };
