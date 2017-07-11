@@ -435,6 +435,33 @@ export default class RestClient {
   /**
    *
    * @private
+   * @param {string} endpoint
+   * @param {Object} context
+   * @param {Object} options
+   * @param {any} body
+   * @return {Promise}
+   */
+  async _post(endpoint, context, options, body) {
+    const res = await this._fetch('POST', endpoint, context, options, body);
+    if (res.errors) return { errors: res.errors };
+
+    if (context.resource && res.data) {
+      this._setCache(
+        context.resource.values,
+        castArray(res.data),
+        res.headers,
+        context.path,
+        null,
+        context.resource.key,
+      );
+    }
+
+    return res.data;
+  }
+
+  /**
+   *
+   * @private
    * @param {Object} res
    * @param {Array<Object>} res.data
    * @param {Object} res.errors
@@ -502,6 +529,7 @@ export default class RestClient {
 
     endpoints.forEach(async ({ endpoint, values }) => {
       const match = data.find(obj => obj[key] === values);
+      if (!match) return;
 
       try {
         this._cache.set(endpoint, match, {
@@ -629,13 +657,14 @@ export default class RestClient {
   async post({ path, resource = null, queryParams = null, body, options = {}, context = {} } = {}) {
     if (!path || !body) return null;
     context = this._setContext('POST', path, resource, queryParams, context);
-    const endpoints = this._buildEndpoints({ path, resource: null, queryParams });
+    const endpoints = this._buildEndpoints({ path, queryParams });
+    const promises = [];
 
-    endpoints.forEach(({ endpoint, values }) => {
-      promises.push(this._fetch('POST', endpoint, values, context, options, body));
+    endpoints.forEach(({ endpoint }) => {
+      promises.push(this._post(endpoint, context, options, body));
     });
 
-    // TODO
+    return flatten(await Promise.all(promises));
   }
 
   /**
