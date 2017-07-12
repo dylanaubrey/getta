@@ -71,6 +71,25 @@ export const mockGet = function mockGet({ batch, resource }) {
  * @param {Array<string>} config.resource
  * @return {Object}
  */
+export const mockGetAll = function mockGetAll({ resource }) {
+  const body = [];
+
+  resource.forEach((value) => {
+    body.push(data[value].body);
+  });
+
+  const headers = { 'Cache-Control': 'public, max-age=60' };
+  const url = `${baseURL}${path}`;
+  fetchMock.mock(url, { body, headers }, { name: url });
+  return { url };
+};
+
+/**
+ *
+ * @param {Object} config
+ * @param {Array<string>} config.resource
+ * @return {Object}
+ */
 export const mockPost = function mockPost({ resource }) {
   let body;
 
@@ -111,6 +130,19 @@ export const setupGet = function setupGet({ batch, resource }) {
   const getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
   getta.shortcut('get', 'getProducts', { path, options: { batch } });
   return { fetchMock, getta, urls };
+};
+
+/**
+ *
+ * @param {Object} config
+ * @param {Array<string>} config.resource
+ * @return {Object}
+ */
+export const setupGetAll = function setupGetAll({ resource }) {
+  const { url } = mockGetAll({ resource });
+  const getta = new Getta({ baseURL, cachemapOptions, newInstance: true });
+  getta.shortcut('get', 'getProducts', { path });
+  return { fetchMock, getta, url };
 };
 
 /**

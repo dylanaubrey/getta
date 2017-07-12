@@ -10,6 +10,7 @@ import {
   mockGet,
   productArgs,
   setupGet,
+  setupGetAll,
   setupPost,
   sortValues,
 } from '../helpers';
@@ -53,7 +54,7 @@ describe('when the Getta class is initialised', () => {
 });
 
 describe('the .get() method', () => {
-  describe('when one resource is returned from the server', () => {
+  describe('when one resource is requested from the server', () => {
     let fetchMock, getta, res;
     const resource = '136-7317';
 
@@ -68,7 +69,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.get(productArgs({ id: resource }));
+      res = await getta.get(productArgs(resource));
     });
 
     afterEach(async () => {
@@ -86,7 +87,7 @@ describe('the .get() method', () => {
     });
   });
 
-  describe('when one resource is returned from the server using a shortcut', () => {
+  describe('when one resource is requested from the server using a shortcut', () => {
     let fetchMock, getta, res;
     const resource = '136-7317';
 
@@ -101,7 +102,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.getProducts({ resource: { id: resource } });
+      res = await getta.getProducts({ resource });
     });
 
     afterEach(async () => {
@@ -119,7 +120,7 @@ describe('the .get() method', () => {
     });
   });
 
-  describe('when one resource is returned from cache', () => {
+  describe('when one requested resource is in the cache', () => {
     let fetchMock, getta, res, urls;
     const resource = '136-7317';
 
@@ -128,7 +129,7 @@ describe('the .get() method', () => {
       fetchMock = setup.fetchMock;
       getta = setup.getta;
       urls = setup.urls;
-      await getta.getProducts({ resource: { id: resource } });
+      await getta.getProducts({ resource });
     });
 
     after(async () => {
@@ -138,7 +139,7 @@ describe('the .get() method', () => {
 
     beforeEach(async () => {
       fetchMock.reset();
-      res = await getta.getProducts({ resource: { id: resource } });
+      res = await getta.getProducts({ resource });
     });
 
     it('should return the requested data', () => {
@@ -150,7 +151,7 @@ describe('the .get() method', () => {
     });
   });
 
-  describe('when batched resources are returned from the server', () => {
+  describe('when batched resources are requested from the server', () => {
     let fetchMock, getta, res;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
@@ -165,7 +166,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.getProducts({ resource: { id: resource } });
+      res = await getta.getProducts({ resource });
     });
 
     afterEach(async () => {
@@ -188,7 +189,7 @@ describe('the .get() method', () => {
     });
   });
 
-  describe('when batched resources are returned from the server and cache', () => {
+  describe('when batched requested resources are returned from the server and cache', () => {
     let fetchMock, getta, res;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
     const cacheResource = '136-7317';
@@ -206,7 +207,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      await getta.getProducts({ resource: { id: cacheResource } });
+      await getta.getProducts({ resource: cacheResource });
     });
 
     afterEach(async () => {
@@ -215,7 +216,7 @@ describe('the .get() method', () => {
     });
 
     it('should return the requested data', async () => {
-      res = await getta.getProducts({ resource: { id: resource } });
+      res = await getta.getProducts({ resource });
       expect(res.sort(sortValues)).to.eql(getValues());
     });
 
@@ -223,7 +224,7 @@ describe('the .get() method', () => {
       expect(await getta._cache.size()).to.eql(1);
       const entry = await getta._cache.get(`content/catalog/product/${cacheResource}`);
       expect(entry).to.eql(data[cacheResource].body);
-      await getta.getProducts({ resource: { id: resource } });
+      await getta.getProducts({ resource });
       expect(await getta._cache.size()).to.eql(4);
       const promises = [];
 
@@ -236,7 +237,7 @@ describe('the .get() method', () => {
     });
   });
 
-  describe('when separate resources are batched and returned from the server', () => {
+  describe('when separate resources are batched and requested from the server', () => {
     let fetchMock, getta, res;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
@@ -254,10 +255,50 @@ describe('the .get() method', () => {
       const promises = [];
 
       resource.forEach((value) => {
-        promises.push(getta.getProducts({ resource: { id: value } }));
+        promises.push(getta.getProducts({ resource: value }));
       });
 
       res = flatten(await Promise.all(promises));
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the requested data', async () => {
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should cache each data resource against its respective endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      const promises = [];
+
+      resource.forEach((value) => {
+        promises.push(getta._cache.get(`content/catalog/product/${value}`));
+      });
+
+      const entries = await Promise.all(promises);
+      expect(entries.sort(sortValues)).to.eql(getValues());
+    });
+  });
+
+  describe('when all resources are requested from the server', () => {
+    let fetchMock, getta, res;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupGetAll({ resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.getProducts();
     });
 
     afterEach(async () => {
@@ -299,7 +340,7 @@ describe('the .post() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.postProducts({ body: { id: resource }, resource: { id: resource } });
+      res = await getta.postProducts({ body: { id: resource } });
     });
 
     afterEach(async () => {
