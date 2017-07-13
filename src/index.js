@@ -696,7 +696,7 @@ export default class RestClient {
     const _options = this._setOptions(options);
 
     const endpoints = this._buildEndpoints({
-      path, queryParams, resource: _context.resource.values,
+      path, queryParams, resource: resource ? _context.resource.values : null,
     }, _options);
 
     const promises = [];
@@ -819,6 +819,6 @@ export default class RestClient {
      * @param {Object} [config]
      * @return {void}
      */
-    this[name] = (config = {}) => this[method]({ ...baseConfig, ...config });
+    this[name] = (config = {}) => this[method](merge(baseConfig, config));
   }
 }

@@ -6,7 +6,10 @@ import data, { getValues } from '../data';
 
 import {
   baseURL,
+  buildQueryString,
   cachemapOptions,
+  setupDelete,
+  setupDeleteAll,
   mockGet,
   productArgs,
   setupGet,
@@ -89,10 +92,11 @@ describe('the .get() method', () => {
 
   describe('when one resource is requested from the server using a shortcut', () => {
     let fetchMock, getta, res;
+    const queryParams = { format: 'standard' };
     const resource = '136-7317';
 
     before(() => {
-      const setup = setupGet({ resource });
+      const setup = setupGet({ queryParams, resource });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
@@ -115,7 +119,11 @@ describe('the .get() method', () => {
 
     it('should cache the data against the endpoint', async () => {
       expect(await getta._cache.size()).to.eql(1);
-      const entry = await getta._cache.get(`content/catalog/product/${resource}`);
+
+      const entry = await getta._cache.get(
+        `content/catalog/product/${resource}${buildQueryString(queryParams)}`,
+      );
+
       expect(entry).to.eql(data[resource].body);
     });
   });
@@ -154,9 +162,12 @@ describe('the .get() method', () => {
   describe('when batched resources are requested from the server', () => {
     let fetchMock, getta, res;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+    const batchOne = ['136-7317', '180-1387'];
+    const batchTwo = ['183-3905', '202-3315'];
 
     before(() => {
-      const setup = setupGet({ batch: true, resource });
+      mockGet({ batch: true, resource: batchOne });
+      const setup = setupGet({ batch: true, resource: batchTwo });
       fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
@@ -166,7 +177,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.getProducts({ resource });
+      res = await getta.getProducts({ resource, options: { batchLimit: 2 } });
     });
 
     afterEach(async () => {
@@ -356,6 +367,116 @@ describe('the .post() method', () => {
       expect(await getta._cache.size()).to.eql(1);
       const entry = await getta._cache.get(`content/catalog/product/${resource}`);
       expect(entry).to.eql(data[resource].body);
+    });
+  });
+});
+
+describe('the .delete() method', () => {
+  describe('when one resource is requested to be deleted on the server', () => {
+    let fetchMock, getta;
+    const resource = '136-7317';
+
+    before(() => {
+      const setup = setupDelete({ resource });
+      setupGet({ newInstance: false, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      await getta.getProducts({ resource });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the deleted data', async () => {
+      const res = await getta.deleteProducts({ resource });
+      expect(res[0]).to.eql(data[resource].body);
+    });
+
+    it('should delete the data if it is found in the cache', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+      await getta.deleteProducts({ resource });
+      expect(await getta._cache.size()).to.eql(0);
+    });
+  });
+
+  describe('when batched resources are requested to be deleted on the server', () => {
+    let fetchMock, getta;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupDelete({ batch: true, resource });
+      setupGet({ batch: true, newInstance: false, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      await getta.getProducts({ resource });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the deleted data', async () => {
+      const res = await getta.deleteProducts({ resource });
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should delete the data if it is found in the cache', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      await getta.deleteProducts({ resource });
+      expect(await getta._cache.size()).to.eql(0);
+    });
+  });
+
+  describe('when all resources are requested to be deleted on the server', () => {
+    let fetchMock, getta;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupDeleteAll({ resource });
+      setupGetAll({ newInstance: false, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      await getta.getProducts();
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the deleted data', async () => {
+      const res = await getta.deleteProducts();
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should delete the data if it is found in the cache', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      await getta.deleteProducts();
+      expect(await getta._cache.size()).to.eql(0);
     });
   });
 });
