@@ -6,10 +6,15 @@ import data, { getValues } from '../data';
 
 import {
   baseURL,
+  buildQueryString,
   cachemapOptions,
-  mockFetch,
+  setupDelete,
+  setupDeleteAll,
+  mockGet,
   productArgs,
-  setupTest,
+  setupGet,
+  setupGetAll,
+  setupPost,
   sortValues,
 } from '../helpers';
 
@@ -51,237 +56,427 @@ describe('when the Getta class is initialised', () => {
   });
 });
 
-describe('when one resource is returned from the server', () => {
-  let fetchMock, getta, res;
-  const resource = '136-7317';
-  const path = 'content/catalog/product';
+describe('the .get() method', () => {
+  describe('when one resource is requested from the server', () => {
+    let fetchMock, getta, res;
+    const resource = '136-7317';
 
-  before(() => {
-    const setup = setupTest({ path, resource });
-    fetchMock = setup.fetchMock;
-    getta = setup.getta;
-  });
-
-  after(() => {
-    fetchMock.restore();
-  });
-
-  beforeEach(async () => {
-    res = await getta.get(productArgs({ id: resource }));
-  });
-
-  afterEach(async () => {
-    await getta._cache.clear();
-  });
-
-  it('should return the requested data', () => {
-    expect(res[0]).to.eql(data[resource].body);
-  });
-
-  it('should cache the data against the endpoint', async () => {
-    expect(await getta._cache.size()).to.eql(1);
-    const entry = await getta._cache.get(`content/catalog/product/${resource}`);
-    expect(entry).to.eql(data[resource].body);
-  });
-});
-
-describe('when one resource is returned from the server using a shortcut', () => {
-  let fetchMock, getta, res;
-  const resource = '136-7317';
-  const path = 'content/catalog/product';
-
-  before(() => {
-    const setup = setupTest({ path, resource });
-    fetchMock = setup.fetchMock;
-    getta = setup.getta;
-  });
-
-  after(() => {
-    fetchMock.restore();
-  });
-
-  beforeEach(async () => {
-    res = await getta.getProducts({ resource: { id: resource } });
-  });
-
-  afterEach(async () => {
-    await getta._cache.clear();
-  });
-
-  it('should return the requested data', () => {
-    expect(res[0]).to.eql(data[resource].body);
-  });
-
-  it('should cache the data against the endpoint', async () => {
-    expect(await getta._cache.size()).to.eql(1);
-    const entry = await getta._cache.get(`content/catalog/product/${resource}`);
-    expect(entry).to.eql(data[resource].body);
-  });
-});
-
-describe('when one resource is returned from cache', () => {
-  let fetchMock, getta, res, urls;
-  const resource = '136-7317';
-  const path = 'content/catalog/product';
-
-  before(async () => {
-    const setup = setupTest({ path, resource });
-    fetchMock = setup.fetchMock;
-    getta = setup.getta;
-    urls = setup.urls;
-    await getta.getProducts({ resource: { id: resource } });
-  });
-
-  after(async () => {
-    fetchMock.restore();
-    await getta._cache.clear();
-  });
-
-  beforeEach(async () => {
-    fetchMock.reset();
-    res = await getta.getProducts({ resource: { id: resource } });
-  });
-
-  it('should return the requested data', () => {
-    expect(res[0]).to.eql(data[resource].body);
-  });
-
-  it('should not have fetched the data from the server', async () => {
-    expect(fetchMock.called(urls[0])).to.be.false();
-  });
-});
-
-describe('when batched resources are returned from the server', () => {
-  let fetchMock, getta, res;
-  const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
-  const path = 'content/catalog/product';
-
-  before(() => {
-    const setup = setupTest({ batch: true, path, resource });
-    fetchMock = setup.fetchMock;
-    getta = setup.getta;
-  });
-
-  after(() => {
-    fetchMock.restore();
-  });
-
-  beforeEach(async () => {
-    res = await getta.getProducts({ resource: { id: resource } });
-  });
-
-  afterEach(async () => {
-    await getta._cache.clear();
-  });
-
-  it('should return the requested data', () => {
-    expect(res).to.eql(getValues());
-  });
-
-  it('should cache each data resource against its respective endpoint', async () => {
-    expect(await getta._cache.size()).to.eql(4);
-    const entries = [];
-
-    resource.forEach((value) => {
-      entries.push(getta._cache.get(`content/catalog/product/${value}`));
+    before(() => {
+      const setup = setupGet({ resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
     });
 
-    expect(await Promise.all(entries)).to.eql(getValues());
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.get(productArgs(resource));
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+    });
+
+    it('should return the requested data', () => {
+      expect(res[0]).to.eql(data[resource].body);
+    });
+
+    it('should cache the data against the endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+      const entry = await getta._cache.get(`content/catalog/product/${resource}`);
+      expect(entry).to.eql(data[resource].body);
+    });
+  });
+
+  describe('when one resource is requested from the server using a shortcut', () => {
+    let fetchMock, getta, res;
+    const queryParams = { format: 'standard' };
+    const resource = '136-7317';
+
+    before(() => {
+      const setup = setupGet({ queryParams, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.getProducts({ resource });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+    });
+
+    it('should return the requested data', () => {
+      expect(res[0]).to.eql(data[resource].body);
+    });
+
+    it('should cache the data against the endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+
+      const entry = await getta._cache.get(
+        `content/catalog/product/${resource}${buildQueryString(queryParams)}`,
+      );
+
+      expect(entry).to.eql(data[resource].body);
+    });
+  });
+
+  describe('when one requested resource is in the cache', () => {
+    let fetchMock, getta, res, urls;
+    const resource = '136-7317';
+
+    before(async () => {
+      const setup = setupGet({ resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+      urls = setup.urls;
+      await getta.getProducts({ resource });
+    });
+
+    after(async () => {
+      fetchMock.restore();
+      await getta._cache.clear();
+    });
+
+    beforeEach(async () => {
+      fetchMock.reset();
+      res = await getta.getProducts({ resource });
+    });
+
+    it('should return the requested data', () => {
+      expect(res[0]).to.eql(data[resource].body);
+    });
+
+    it('should not have fetched the data from the server', async () => {
+      expect(fetchMock.called(urls[0])).to.be.false();
+    });
+  });
+
+  describe('when batched resources are requested from the server', () => {
+    let fetchMock, getta, res;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+    const batchOne = ['136-7317', '180-1387'];
+    const batchTwo = ['183-3905', '202-3315'];
+
+    before(() => {
+      mockGet({ batch: true, resource: batchOne });
+      const setup = setupGet({ batch: true, resource: batchTwo });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.getProducts({ resource, options: { batchLimit: 2 } });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+    });
+
+    it('should return the requested data', () => {
+      expect(res).to.eql(getValues());
+    });
+
+    it('should cache each data resource against its respective endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      const entries = [];
+
+      resource.forEach((value) => {
+        entries.push(getta._cache.get(`content/catalog/product/${value}`));
+      });
+
+      expect(await Promise.all(entries)).to.eql(getValues());
+    });
+  });
+
+  describe('when batched requested resources are returned from the server and cache', () => {
+    let fetchMock, getta, res;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+    const cacheResource = '136-7317';
+    const serverResource = ['180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      mockGet({ batch: false, resource: cacheResource });
+      const setup = setupGet({ batch: true, resource: serverResource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      await getta.getProducts({ resource: cacheResource });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the requested data', async () => {
+      res = await getta.getProducts({ resource });
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should cache each data resource against its respective endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+      const entry = await getta._cache.get(`content/catalog/product/${cacheResource}`);
+      expect(entry).to.eql(data[cacheResource].body);
+      await getta.getProducts({ resource });
+      expect(await getta._cache.size()).to.eql(4);
+      const promises = [];
+
+      resource.forEach((value) => {
+        promises.push(getta._cache.get(`content/catalog/product/${value}`));
+      });
+
+      const entries = await Promise.all(promises);
+      expect(entries.sort(sortValues)).to.eql(getValues());
+    });
+  });
+
+  describe('when separate resources are batched and requested from the server', () => {
+    let fetchMock, getta, res;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupGet({ batch: true, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      const promises = [];
+
+      resource.forEach((value) => {
+        promises.push(getta.getProducts({ resource: value }));
+      });
+
+      res = flatten(await Promise.all(promises));
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the requested data', async () => {
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should cache each data resource against its respective endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      const promises = [];
+
+      resource.forEach((value) => {
+        promises.push(getta._cache.get(`content/catalog/product/${value}`));
+      });
+
+      const entries = await Promise.all(promises);
+      expect(entries.sort(sortValues)).to.eql(getValues());
+    });
+  });
+
+  describe('when all resources are requested from the server', () => {
+    let fetchMock, getta, res;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupGetAll({ resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.getProducts();
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the requested data', async () => {
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should cache each data resource against its respective endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      const promises = [];
+
+      resource.forEach((value) => {
+        promises.push(getta._cache.get(`content/catalog/product/${value}`));
+      });
+
+      const entries = await Promise.all(promises);
+      expect(entries.sort(sortValues)).to.eql(getValues());
+    });
   });
 });
 
-describe('when batched resources are returned from the server and cache', () => {
-  let fetchMock, getta, res;
-  const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
-  const cacheResource = '136-7317';
-  const serverResource = ['180-1387', '183-3905', '202-3315'];
-  const path = 'content/catalog/product';
+describe('the .post() method', () => {
+  describe('when one resource is created and returned from the server', () => {
+    let fetchMock, getta, res;
+    const resource = '136-7317';
 
-  before(() => {
-    mockFetch({ batch: false, path, resource: cacheResource });
-    const setup = setupTest({ batch: true, path, resource: serverResource });
-    fetchMock = setup.fetchMock;
-    getta = setup.getta;
-  });
-
-  after(() => {
-    fetchMock.restore();
-  });
-
-  beforeEach(async () => {
-    await getta.getProducts({ resource: { id: cacheResource } });
-  });
-
-  afterEach(async () => {
-    await getta._cache.clear();
-    fetchMock.reset();
-  });
-
-  it('should return the requested data', async () => {
-    res = await getta.getProducts({ resource: { id: resource } });
-    expect(res.sort(sortValues)).to.eql(getValues());
-  });
-
-  it('should cache each data resource against its respective endpoint', async () => {
-    expect(await getta._cache.size()).to.eql(1);
-    const entry = await getta._cache.get(`content/catalog/product/${cacheResource}`);
-    expect(entry).to.eql(data[cacheResource].body);
-    await getta.getProducts({ resource: { id: resource } });
-    expect(await getta._cache.size()).to.eql(4);
-    const promises = [];
-
-    resource.forEach((value) => {
-      promises.push(getta._cache.get(`content/catalog/product/${value}`));
+    before(() => {
+      const setup = setupPost({ resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
     });
 
-    const entries = await Promise.all(promises);
-    expect(entries.sort(sortValues)).to.eql(getValues());
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.postProducts({ body: { id: resource } });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the created data', async () => {
+      expect(res[0]).to.eql(data[resource].body);
+    });
+
+    it('should cache the returned data against its .get() endpoint', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+      const entry = await getta._cache.get(`content/catalog/product/${resource}`);
+      expect(entry).to.eql(data[resource].body);
+    });
   });
 });
 
-describe('when separate resources are batched and returned from the server', () => {
-  let fetchMock, getta, res;
-  const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
-  const path = 'content/catalog/product';
+describe('the .delete() method', () => {
+  describe('when one resource is requested to be deleted on the server', () => {
+    let fetchMock, getta;
+    const resource = '136-7317';
 
-  before(() => {
-    const setup = setupTest({ batch: true, path, resource });
-    fetchMock = setup.fetchMock;
-    getta = setup.getta;
-  });
-
-  after(() => {
-    fetchMock.restore();
-  });
-
-  beforeEach(async () => {
-    const promises = [];
-
-    resource.forEach((value) => {
-      promises.push(getta.getProducts({ resource: { id: value } }));
+    before(() => {
+      const setup = setupDelete({ resource });
+      setupGet({ newInstance: false, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
     });
 
-    res = flatten(await Promise.all(promises));
-  });
-
-  afterEach(async () => {
-    await getta._cache.clear();
-    fetchMock.reset();
-  });
-
-  it('should return the requested data', async () => {
-    expect(res.sort(sortValues)).to.eql(getValues());
-  });
-
-  it('should cache each data resource against its respective endpoint', async () => {
-    expect(await getta._cache.size()).to.eql(4);
-    const promises = [];
-
-    resource.forEach((value) => {
-      promises.push(getta._cache.get(`content/catalog/product/${value}`));
+    after(() => {
+      fetchMock.restore();
     });
 
-    const entries = await Promise.all(promises);
-    expect(entries.sort(sortValues)).to.eql(getValues());
+    beforeEach(async () => {
+      await getta.getProducts({ resource });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the deleted data', async () => {
+      const res = await getta.deleteProducts({ resource });
+      expect(res[0]).to.eql(data[resource].body);
+    });
+
+    it('should delete the data if it is found in the cache', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+      await getta.deleteProducts({ resource });
+      expect(await getta._cache.size()).to.eql(0);
+    });
+  });
+
+  describe('when batched resources are requested to be deleted on the server', () => {
+    let fetchMock, getta;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupDelete({ batch: true, resource });
+      setupGet({ batch: true, newInstance: false, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      await getta.getProducts({ resource });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the deleted data', async () => {
+      const res = await getta.deleteProducts({ resource });
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should delete the data if it is found in the cache', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      await getta.deleteProducts({ resource });
+      expect(await getta._cache.size()).to.eql(0);
+    });
+  });
+
+  describe('when all resources are requested to be deleted on the server', () => {
+    let fetchMock, getta;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupDeleteAll({ resource });
+      setupGetAll({ newInstance: false, resource });
+      fetchMock = setup.fetchMock;
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      await getta.getProducts();
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+      fetchMock.reset();
+    });
+
+    it('should return the deleted data', async () => {
+      const res = await getta.deleteProducts();
+      expect(res.sort(sortValues)).to.eql(getValues());
+    });
+
+    it('should delete the data if it is found in the cache', async () => {
+      expect(await getta._cache.size()).to.eql(4);
+      await getta.deleteProducts();
+      expect(await getta._cache.size()).to.eql(0);
+    });
   });
 });

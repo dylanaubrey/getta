@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, cloneDeep, flatten, isFunction } from 'lodash';
+import { castArray, flatten, get, isArray, isString, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
@@ -42,17 +42,10 @@ export default class RestClient {
      * on a property of 'data' and any errors returned
      * to be on a property of 'errors'.
      *
-     * @type {Function}
+     * @param {any} body
+     * @return {Object}
      */
-    bodyParser = null,
-    /**
-     *
-     * Optional function used to parse the data of
-     * a response prior the client returning it.
-     *
-     * @type {Function}
-     */
-    dataParser = null,
+    bodyParser = body => ({ data: body }),
     /**
      *
      * Optional configuration to be passed to the
@@ -83,6 +76,12 @@ export default class RestClient {
      */
     newInstance = false,
     /**
+     * Response stream reader to use.
+     *
+     * @type {string}
+     */
+    streamReader = 'json',
+    /**
      * Optional reference object used to store
      * request information against a unique
      * identifier on the context.
@@ -103,9 +102,9 @@ export default class RestClient {
     this._batchLimit = batchLimit;
     this._bodyParser = bodyParser;
     this._cache = new Cachemap(cachemapOptions);
-    this._dataParser = dataParser;
     this._disableCaching = disableCaching;
     this._headers = headers;
+    this._streamReader = streamReader;
     this._tracker = tracker;
     instance = this;
     return instance;
@@ -147,7 +146,13 @@ export default class RestClient {
    *
    * @private
    * @param {Object} context
+   * @param {string} context.path
+   * @param {Object} context.resource
+   * @param {string} context.fetchID
+   * @param {string} context.requestID
    * @param {Object} options
+   * @param {boolean} options.batch
+   * @param {number} options.batchLimit
    * @return {Object}
    */
   _batchRequest({ path, resource, fetchID, requestID }, { batch, batchLimit }) {
@@ -164,10 +169,9 @@ export default class RestClient {
     const skip = !resource.active.length;
 
     if (!skip && batch) {
-      const limit = batchLimit || this._batchLimit;
       resource.batched = [...resource.active];
 
-      if (tracker.active.length && resource.batched.length < limit) {
+      if (tracker.active.length && resource.batched.length < batchLimit) {
         for (let i = tracker.active.length - 1; i >= 0; i -= 1) {
           resource.batched.push(tracker.active[i].value);
           tracker.fetching.push({ fetchID, value: tracker.active[i].value });
@@ -177,7 +181,7 @@ export default class RestClient {
           );
 
           tracker.active.splice(i, 1);
-          if (resource.batched.length === limit) break;
+          if (resource.batched.length === batchLimit) break;
         }
       }
     }
@@ -189,19 +193,20 @@ export default class RestClient {
    *
    * @private
    * @param {Array<string>} resource
+   * @param {number} batchLimit
    * @return {Array<Array>}
    */
-  _batchResource(resource) {
+  _batchResource(resource, batchLimit) {
     const batches = [];
-    const countLimit = Math.ceil(resource.length / this._batchLimit);
+    const countLimit = Math.ceil(resource.length / batchLimit);
     let count = 0;
     let start = 0;
-    let stop = this._batchLimit;
+    let stop = batchLimit;
 
     do {
       batches.push(resource.slice(start, stop));
-      start += this._batchLimit;
-      stop += this._batchLimit;
+      start += batchLimit;
+      stop += batchLimit;
       count += 1;
     } while (count < countLimit);
 
@@ -231,25 +236,37 @@ export default class RestClient {
    *
    * @private
    * @param {Object} context
-   * @param {Object} options
+   * @param {string} context.path
+   * @param {Object} context.queryParams
+   * @param {Array<string>} context.resource
+   * @param {Object} [options]
+   * @param {boolean} [options.batch]
+   * @param {number} [options.batchLimit]
    * @return {Array<Object>}
    */
-  _buildEndpoints({ path, resource, queryParams }, { batch }) {
+  _buildEndpoints({ path, queryParams, resource }, { batch, batchLimit } = {}) {
     let endpoint = resource ? `${path}/{resource}` : path;
     if (queryParams) endpoint += this._buildQueryString(queryParams);
     if (!resource) return [{ endpoint }];
-    return this._populateResource(endpoint, batch ? resource.batched : resource.active, batch);
+    return this._populateResource(endpoint, resource, batch, batchLimit);
   }
 
   /**
    *
    * @private
    * @param {Object} context
+   * @param {string} context.path
+   * @param {Object} context.resource
+   * @param {Object} context.queryParams
    * @return {Promise}
    */
   async _checkCache({ path, resource, queryParams }) {
     if (this._disableCaching) return {};
-    const endpoints = this._buildEndpoints({ path, resource, queryParams }, { batch: false });
+
+    const endpoints = this._buildEndpoints({
+      path, resource: resource ? resource.active : null, queryParams,
+    });
+
     const promises = [];
 
     endpoints.forEach(({ endpoint, values }) => {
@@ -291,6 +308,10 @@ export default class RestClient {
    *
    * @private
    * @param {Object} context
+   * @param {string} context.path
+   * @param {Object} context.resource
+   * @param {string} context.fetchID
+   * @param {string} context.requestID
    * @return {Object}
    */
   _dedupRequest({ path, resource, fetchID, requestID }) {
@@ -326,48 +347,107 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {string} method
    * @param {string} endpoint
-   * @param {string|Array<string>} values
+   * @param {Array<string>} values
    * @param {Object} context
    * @param {Object} options
+   * @param {string} resourceKey
    * @return {Promise}
    */
-  async _fetch(method, endpoint, values, context, options) {
+  async _delete(endpoint, values, context, options, resourceKey) {
+    const res = await this._fetch('DELETE', endpoint, context, options);
+    if (res.errors) return res.errors;
+
+    if (res.data) {
+      const data = castArray(res.data);
+      this._deleteCache(data, context.path, context.queryParams, resourceKey);
+    }
+
+    return res.data;
+  }
+
+  /**
+   *
+   * @private
+   * @param {Array<Object>} data
+   * @param {string} path
+   * @param {Object} queryParams
+   * @param {string} key
+   * @return {Promise}
+   */
+  async _deleteCache(data, path, queryParams, key) {
+    if (this._disableCaching) return;
+
+    data.forEach((value) => {
+      if (!get(value, [key], null)) return;
+      const endpoints = this._buildEndpoints({ path, queryParams, resource: [value[key]] });
+      if (!get(endpoints, [0, 'endpoint'], null)) return;
+
+      try {
+        this._cache.delete(endpoints[0].endpoint);
+      } catch (err) {
+        logger.error(err);
+      }
+    });
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} method
+   * @param {string} endpoint
+   * @param {Object} context
+   * @param {Object} options
+   * @param {any} content
+   * @return {Promise}
+   */
+  async _fetch(method, endpoint, context, options, content) {
     let res, errors;
 
     try {
-      logger.info(`${this._name} fetching: ${endpoint}`, context);
-      const headers = options.headers ? { ...this._headers, ...options.headers } : this._headers;
+      logger.info(`${method}: ${this._baseURL}${endpoint}`);
+      let _content;
+      if (content && !isString(content)) _content = JSON.stringify(content);
 
       res = await fetch(`${this._baseURL}${endpoint}`, {
-        method,
-        headers: new Headers(headers),
+        body: _content, headers: new Headers(options.headers), method,
       });
     } catch (err) {
       errors = err;
       logger.error(err);
     }
 
-    if (errors) {
-      this._resolveRequests({ errors }, values, context);
-      return { errors };
+    if (errors) return { errors };
+    let body = await res[options.streamReader]();
+    body = options.bodyParser(body, context);
+    if (body.errors) return { errors: body.errors };
+    return { data: body.data, headers: res.headers };
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} endpoint
+   * @param {string|Array<string>} values
+   * @param {Object} context
+   * @param {Object} options
+   * @param {string} resourceKey
+   * @return {Promise}
+   */
+  async _get(endpoint, values, context, options, resourceKey) {
+    const res = await this._fetch('GET', endpoint, context, options);
+    const data = res.data ? castArray(res.data) : [];
+    const errors = res.errors;
+    const _values = values ? castArray(values) : [];
+    this._resolveRequests({ data, errors }, _values, context, resourceKey);
+    if (errors) return errors;
+
+    if (data.length) {
+      this._setCache(data, res.headers, context.path, context.queryParams, resourceKey);
     }
 
-    let body = await res.json();
-    const bodyParser = options.bodyParser || this._bodyParser;
-    body = isFunction(bodyParser) ? bodyParser(body, context) : body;
-
-    if (body.errors) {
-      this._resolveRequests({ errors: body.errors }, values, context);
-      return { errors: body.errors };
-    }
-
-    const dataParser = options.dataParser || this._dataParser;
-    const data = isFunction(dataParser) ? dataParser(body.data, context, res.headers) : body.data;
-    if (!values) return data;
-    this._resolveRequests({ data }, values, context, res.headers);
-    return this._resolveResource(data, context);
+    if (!context.resource) return data;
+    return this._resolveResource(data, resourceKey, context.resource.active);
   }
 
   /**
@@ -375,6 +455,7 @@ export default class RestClient {
    * @private
    * @param {string} requestID
    * @param {string} path
+   * @param {string} method
    * @return {string}
    */
   _getTracker(requestID, path) {
@@ -394,9 +475,10 @@ export default class RestClient {
    * @param {string} endpoint
    * @param {Array<string>} resource
    * @param {boolean} batch
+   * @param {number} batchLimit
    * @return {Array<Object>}
    */
-  _populateResource(endpoint, resource, batch) {
+  _populateResource(endpoint, resource, batch, batchLimit) {
     const regex = /{resource}/;
     const endpoints = [];
 
@@ -404,10 +486,10 @@ export default class RestClient {
       resource.forEach((value) => {
         endpoints.push({ endpoint: endpoint.replace(regex, value), values: value });
       });
-    } else if (resource.length <= this._batchLimit) {
+    } else if (resource.length <= batchLimit) {
       endpoints.push({ endpoint: endpoint.replace(regex, resource.sort().join(',')), values: resource });
     } else {
-      this._batchResource(resource).forEach((group) => {
+      this._batchResource(resource, batchLimit).forEach((group) => {
         endpoints.push({ endpoint: endpoint.replace(regex, group.sort().join(',')), values: group });
       });
     }
@@ -418,28 +500,46 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Object|Array<Object>} res
+   * @param {string} endpoint
+   * @param {Object} context
+   * @param {Object} options
+   * @param {any} body
+   * @param {string} resourceKey
+   * @return {Promise}
+   */
+  async _post(endpoint, context, options, body, resourceKey) {
+    const res = await this._fetch('POST', endpoint, context, options, body);
+    if (res.errors) return res.errors;
+
+    if (res.data) {
+      this._setCache(castArray(res.data), res.headers, context.path, null, resourceKey);
+    }
+
+    return res.data;
+  }
+
+  /**
+   *
+   * @private
+   * @param {Object} res
+   * @param {Array<Object>} res.data
+   * @param {Object} res.errors
    * @param {string|Array<string>} values
    * @param {Object} context
-   * @param {Headers} headers
+   * @param {string} context.fetchID
+   * @param {string} context.requestID
+   * @param {string} context.path
+   * @param {string} resourceKey
    * @return {void}
    */
-  async _resolveRequests(
-    res, values, { fetchID, requestID, path, resource, queryParams }, headers,
-  ) {
-    if (!values) return;
+  async _resolveRequests({ data, errors }, values, { fetchID, requestID, path }, resourceKey) {
+    if (!values.length) return;
     const { fetching, pending } = this._getTracker(requestID, path);
-    const data = castArray(res.data);
-    values = castArray(values);
 
     values.forEach((value) => {
       const index = fetching.findIndex(obj => obj.value === value);
       if (index !== -1) fetching.splice(index, 1);
-
-      const match = res.errors
-          ? { errors: res.errors } : data.find(obj => obj[resource.key] === value);
-
-      if (!res.errors && match) this._setCache(path, value, queryParams, match, headers);
+      const match = errors || data.find(obj => obj[resourceKey] === value);
       if (!pending[value]) return;
 
       for (let i = pending[value].length - 1; i >= 0; i -= 1) {
@@ -455,15 +555,15 @@ export default class RestClient {
    *
    * @private
    * @param {Object|Array<Object>} data
-   * @param {Object} context
-   * @return {Object|Array<Object>}
+   * @param {string} key
+   * @param {Array<string>} values
+   * @return {Array<Object>}
    */
-  _resolveResource(data, { resource }) {
-    data = castArray(data);
+  _resolveResource(data, key, values) {
     const filtered = [];
 
-    resource.active.forEach((value) => {
-      const match = data.find(obj => obj[resource.key] === value);
+    values.forEach((value) => {
+      const match = data.find(obj => obj[key] === value);
       if (match) filtered.push(match);
     });
 
@@ -473,51 +573,77 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {string} path
-   * @param {string} value
-   * @param {Object} queryParams
-   * @param {Object} data
+   * @param {Array<Object>} data
    * @param {Headers} headers
+   * @param {string} path
+   * @param {Object} queryParams
+   * @param {string} key
    * @return {Promise}
    */
-  async _setCache(path, value, queryParams, data, headers) {
+  async _setCache(data, headers, path, queryParams, key) {
     if (this._disableCaching) return;
 
-    const endpoints = this._buildEndpoints({
-      path, resource: { active: [value] }, queryParams,
-    }, { batch: false });
+    data.forEach((value) => {
+      if (!get(value, [key], null)) return;
+      const endpoints = this._buildEndpoints({ path, queryParams, resource: [value[key]] });
+      if (!get(endpoints, [0, 'endpoint'], null)) return;
 
-    try {
-      this._cache.set(endpoints[0].endpoint, data, { cacheControl: headers.get('Cache-Control') });
-    } catch (err) {
-      logger.error(err);
-    }
+      try {
+        this._cache.set(endpoints[0].endpoint, value, { cacheControl: headers.get('Cache-Control') });
+      } catch (err) {
+        logger.error(err);
+      }
+    });
   }
 
   /**
    *
    * @private
+   * @param {string} method
    * @param {string} path
-   * @param {Object} resource
+   * @param {string|Array<string>} resource
    * @param {Object} queryParams
    * @param {Object} context
    * @return {Object}
    */
-  _setContext(path, resource, queryParams, context) {
+  _setContext(method, path, resource, queryParams, context) {
+    let _resource = null;
+
     if (resource) {
-      resource = cloneDeep(resource);
-      const key = Object.keys(resource)[0];
-      resource = { active: castArray(resource[key]), batched: [], pending: [], key };
+      const values = isArray(resource) ? [...resource] : resource;
+
+      if (method === 'GET') {
+        _resource = { active: castArray(values), batched: [], pending: [] };
+      } else {
+        _resource = { values: castArray(values) };
+      }
     }
 
-    return { ...{ path, resource, queryParams, fetchID: uuidV1() }, ...context };
+    return { ...{ path, resource: _resource, queryParams, fetchID: uuidV1() }, ...context };
+  }
+
+  /**
+   *
+   * @param {Object} options
+   * @return {Object}
+   */
+  _setOptions(options) {
+    const defaultOptions = {
+      batchLimit: this._batchLimit,
+      bodyParser: this._bodyParser,
+      headers: this._headers,
+      streamReader: this._streamReader,
+    };
+
+    return merge(defaultOptions, options);
   }
 
   /**
    *
    * @private
    * @param {Array<Function>} pending
-   * @param {string} context
+   * @param {Object} context
+   * @param {string} context.fetchID
    * @return {Promise}
    */
   _setPendingRequest(pending, { fetchID }) {
@@ -529,7 +655,9 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Object} ids
+   * @param {Object} context
+   * @param {string} context.fetchID
+   * @param {string} context.resource
    * @param {string} requestID
    * @param {string} path
    * @return {void}
@@ -547,38 +675,132 @@ export default class RestClient {
   /**
    *
    * @param {Object} config
+   * @param {Object} [config.context]
+   * @param {Object} [config.options]
+   * @param {string} config.path
+   * @param {Object} [config.queryParams]
+   * @param {Object} [config.resource]
+   * @param {string} [config.resourceKey]
    * @return {Promise}
    */
-  async get({ path, resource = null, queryParams = null, options = {}, context = {} } = {}) {
+  async delete({
+    context = {},
+    options = {},
+    path,
+    queryParams = null,
+    resource = null,
+    resourceKey = 'id',
+  } = {}) {
     if (!path) return null;
-    context = this._setContext(path, resource, queryParams, context);
-    const check = await this._checkCache(context);
+    const _context = this._setContext('DELETE', path, resource, queryParams, context);
+    const _options = this._setOptions(options);
+
+    const endpoints = this._buildEndpoints({
+      path, queryParams, resource: resource ? _context.resource.values : null,
+    }, _options);
+
+    const promises = [];
+
+    endpoints.forEach(({ endpoint, values }) => {
+      promises.push(this._delete(endpoint, values, _context, _options, resourceKey));
+    });
+
+    let res = flatten(await Promise.all(promises));
+    res = res.filter(value => !!value);
+    return res;
+  }
+
+  /**
+   *
+   * @param {Object} config
+   * @param {Object} [config.context]
+   * @param {Object} [config.options]
+   * @param {string} config.path
+   * @param {Object} [config.queryParams]
+   * @param {string|Array<string>} [config.resource]
+   * @param {string} [config.resourceKey]
+   * @return {Promise}
+   */
+  async get({
+    context = {},
+    options = {},
+    path,
+    queryParams = null,
+    resource = null,
+    resourceKey = 'id',
+  } = {}) {
+    if (!path) return null;
+    const _context = this._setContext('GET', path, resource, queryParams, context);
+    const _options = this._setOptions(options);
+    const check = await this._checkCache(_context);
     if (check.skip) return check.data;
-    let promises, skip;
+    let endpointsResource, skip;
+    let promises = [];
 
     if (resource) {
-      const dedup = this._dedupRequest(context);
+      const dedup = this._dedupRequest(_context);
 
       const batch = await new Promise((resolve) => {
         setImmediate(() => {
-          resolve(this._batchRequest(context, options));
+          resolve(this._batchRequest(_context, _options));
         });
       });
 
+      endpointsResource = _options.batch ? _context.resource.batched : _context.resource.active;
       promises = [...dedup.promises, ...batch.promises];
       skip = batch.skip;
     }
 
     if (!skip) {
-      const endpoints = this._buildEndpoints(context, options);
+      const endpoints = this._buildEndpoints({
+        path, queryParams, resource: endpointsResource,
+      }, _options);
 
       endpoints.forEach(({ endpoint, values }) => {
-        promises.push(this._fetch('GET', endpoint, values, context, options));
+        promises.push(this._get(endpoint, values, _context, _options, resourceKey));
       });
     }
 
-    const data = flatten(await Promise.all(promises));
-    return [...data, ...check.data];
+    let data = flatten(await Promise.all(promises));
+    if (check.data.length) data = [...data, ...check.data];
+    data = data.filter(value => !!value);
+    return data;
+  }
+
+  /**
+   *
+   * @param {Object} config
+   * @param {any} config.body
+   * @param {Object} [config.context]
+   * @param {Object} [config.options]
+   * @param {string} config.path
+   * @param {Object} [config.queryParams]
+   * @param {Object} [config.resource]
+   * @param {string} [config.resourceKey]
+   * @return {Promise}
+   */
+  async post({
+    body,
+    context = {},
+    options = {},
+    path,
+    queryParams = null,
+    resource = null,
+    resourceKey = 'id',
+  } = {}) {
+    if (!path || !body) return null;
+    const _context = this._setContext('POST', path, resource, queryParams, context);
+    const _options = this._setOptions(options);
+    const endpoints = this._buildEndpoints({ path, queryParams });
+    const promises = [];
+
+    endpoints.forEach(({ endpoint }) => {
+      promises.push(this._post(endpoint, _context, _options, body, resourceKey));
+    });
+
+    let data = flatten(await Promise.all(promises));
+    data = data.filter(value => !!value);
+    return data;
   }
 
   /**
@@ -597,6 +819,6 @@ export default class RestClient {
      * @param {Object} [config]
      * @return {void}
      */
-    this[name] = (config = {}) => this[method]({ ...baseConfig, ...config });
+    this[name] = (config = {}) => this[method](merge(baseConfig, config));
   }
 }
