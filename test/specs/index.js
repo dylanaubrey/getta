@@ -106,7 +106,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.getProducts({ resource });
+      res = await getta.getProduct({ resource });
     });
 
     afterEach(async () => {
@@ -137,7 +137,7 @@ describe('the .get() method', () => {
       fetchMock = setup.fetchMock;
       getta = setup.getta;
       urls = setup.urls;
-      await getta.getProducts({ resource });
+      await getta.getProduct({ resource });
     });
 
     after(async () => {
@@ -147,7 +147,7 @@ describe('the .get() method', () => {
 
     beforeEach(async () => {
       fetchMock.reset();
-      res = await getta.getProducts({ resource });
+      res = await getta.getProduct({ resource });
     });
 
     it('should return the requested data', () => {
@@ -177,7 +177,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.getProducts({ resource, options: { batchLimit: 2 } });
+      res = await getta.getProduct({ resource, options: { batchLimit: 2 } });
     });
 
     afterEach(async () => {
@@ -218,7 +218,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      await getta.getProducts({ resource: cacheResource });
+      await getta.getProduct({ resource: cacheResource });
     });
 
     afterEach(async () => {
@@ -227,7 +227,7 @@ describe('the .get() method', () => {
     });
 
     it('should return the requested data', async () => {
-      res = await getta.getProducts({ resource });
+      res = await getta.getProduct({ resource });
       expect(res.sort(sortValues)).to.eql(getValues());
     });
 
@@ -235,7 +235,7 @@ describe('the .get() method', () => {
       expect(await getta._cache.size()).to.eql(1);
       const entry = await getta._cache.get(`content/catalog/product/${cacheResource}`);
       expect(entry).to.eql(data[cacheResource].body);
-      await getta.getProducts({ resource });
+      await getta.getProduct({ resource });
       expect(await getta._cache.size()).to.eql(4);
       const promises = [];
 
@@ -266,7 +266,7 @@ describe('the .get() method', () => {
       const promises = [];
 
       resource.forEach((value) => {
-        promises.push(getta.getProducts({ resource: value }));
+        promises.push(getta.getProduct({ resource: value }));
       });
 
       res = flatten(await Promise.all(promises));
@@ -309,7 +309,7 @@ describe('the .get() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.getProducts();
+      res = await getta.getProduct();
     });
 
     afterEach(async () => {
@@ -351,7 +351,7 @@ describe('the .post() method', () => {
     });
 
     beforeEach(async () => {
-      res = await getta.postProducts({ body: { id: resource } });
+      res = await getta.postProduct({ body: { id: resource } });
     });
 
     afterEach(async () => {
@@ -388,7 +388,7 @@ describe('the .delete() method', () => {
     });
 
     beforeEach(async () => {
-      await getta.getProducts({ resource });
+      await getta.getProduct({ resource });
     });
 
     afterEach(async () => {
@@ -397,13 +397,13 @@ describe('the .delete() method', () => {
     });
 
     it('should return the deleted data', async () => {
-      const res = await getta.deleteProducts({ resource });
+      const res = await getta.deleteProduct({ resource });
       expect(res[0]).to.eql(data[resource].body);
     });
 
     it('should delete the data if it is found in the cache', async () => {
       expect(await getta._cache.size()).to.eql(1);
-      await getta.deleteProducts({ resource });
+      await getta.deleteProduct({ resource });
       expect(await getta._cache.size()).to.eql(0);
     });
   });
@@ -424,7 +424,7 @@ describe('the .delete() method', () => {
     });
 
     beforeEach(async () => {
-      await getta.getProducts({ resource });
+      await getta.getProduct({ resource });
     });
 
     afterEach(async () => {
@@ -433,13 +433,13 @@ describe('the .delete() method', () => {
     });
 
     it('should return the deleted data', async () => {
-      const res = await getta.deleteProducts({ resource });
+      const res = await getta.deleteProduct({ resource });
       expect(res.sort(sortValues)).to.eql(getValues());
     });
 
     it('should delete the data if it is found in the cache', async () => {
       expect(await getta._cache.size()).to.eql(4);
-      await getta.deleteProducts({ resource });
+      await getta.deleteProduct({ resource });
       expect(await getta._cache.size()).to.eql(0);
     });
   });
@@ -460,7 +460,7 @@ describe('the .delete() method', () => {
     });
 
     beforeEach(async () => {
-      await getta.getProducts();
+      await getta.getProduct();
     });
 
     afterEach(async () => {
@@ -469,13 +469,13 @@ describe('the .delete() method', () => {
     });
 
     it('should return the deleted data', async () => {
-      const res = await getta.deleteProducts();
+      const res = await getta.deleteProduct();
       expect(res.sort(sortValues)).to.eql(getValues());
     });
 
     it('should delete the data if it is found in the cache', async () => {
       expect(await getta._cache.size()).to.eql(4);
-      await getta.deleteProducts();
+      await getta.deleteProduct();
       expect(await getta._cache.size()).to.eql(0);
     });
   });

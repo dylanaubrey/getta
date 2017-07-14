@@ -417,11 +417,11 @@ export default class RestClient {
       logger.error(err);
     }
 
-    if (errors) return { errors };
+    if (errors) return { errors, status: res.status };
     let body = await res[options.streamReader]();
     body = options.bodyParser(body, context);
-    if (body.errors) return { errors: body.errors };
-    return { data: body.data, headers: res.headers };
+    if (body.errors) return { errors: body.errors, status: res.status };
+    return { data: body.data, headers: res.headers, status: res.status };
   }
 
   /**
@@ -589,7 +589,9 @@ export default class RestClient {
       if (!get(endpoints, [0, 'endpoint'], null)) return;
 
       try {
-        this._cache.set(endpoints[0].endpoint, value, { cacheControl: headers.get('Cache-Control') });
+        this._cache.set(endpoints[0].endpoint, value, { cacheHeaders: {
+          cacheControl: headers.get('Cache-Control'),
+        } });
       } catch (err) {
         logger.error(err);
       }

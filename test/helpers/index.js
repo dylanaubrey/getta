@@ -22,6 +22,12 @@ export const cachemapOptions = { localStorageOptions: { mock: localStorageMock }
  */
 export const path = 'content/catalog/product';
 
+/**
+ *
+ * @type {Object}
+ */
+export const headers = { 'Cache-Control': 'public, max-age=60', Etag: '33a64df551425fcc55e4d42a148795d9f25f89d4' };
+
 
 /**
  *
@@ -67,7 +73,6 @@ export const mock = function mock({ batch, method, queryParams, resource }) {
   }
 
   const queryString = !queryParams ? '' : buildQueryString(queryParams);
-  const headers = { 'Cache-Control': 'public, max-age=60' };
   const urls = [];
 
   if (!isArray(resource) || batch) {
@@ -101,7 +106,6 @@ export const mockAll = function mockAll({ method, resource }) {
     body.push(data[value].body);
   });
 
-  const headers = { 'Cache-Control': 'public, max-age=60' };
   const url = `${baseURL}${path}`;
   fetchMock.mock(url, { body, headers }, { method, name: url });
   return { url };
@@ -169,7 +173,6 @@ export const mockPost = function mockPost({ resource }) {
     body = data[resource].body;
   }
 
-  const headers = { 'Cache-Control': 'public, max-age=60' };
   const url = `${baseURL}${path}`;
   fetchMock.mock(url, { body, headers }, { method: 'post', name: url });
   return { url };
@@ -195,7 +198,7 @@ export const productArgs = function productArgs(resource) {
 export const setupDelete = function setupDelete({ batch, newInstance = true, resource }) {
   const { urls } = mockDelete({ batch, resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
-  getta.shortcut('delete', 'deleteProducts', { options: { batch }, path });
+  getta.shortcut('delete', 'deleteProduct', { options: { batch }, path });
   return { fetchMock, getta, urls };
 };
 
@@ -209,7 +212,7 @@ export const setupDelete = function setupDelete({ batch, newInstance = true, res
 export const setupDeleteAll = function setupDeleteAll({ newInstance = true, resource }) {
   const { url } = mockDeleteAll({ resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
-  getta.shortcut('delete', 'deleteProducts', { path });
+  getta.shortcut('delete', 'deleteProduct', { path });
   return { fetchMock, getta, url };
 };
 
@@ -225,7 +228,7 @@ export const setupDeleteAll = function setupDeleteAll({ newInstance = true, reso
 export const setupGet = function setupGet({ batch, newInstance = true, queryParams, resource }) {
   const { urls } = mockGet({ batch, queryParams, resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
-  getta.shortcut('get', 'getProducts', { options: { batch }, path, queryParams });
+  getta.shortcut('get', 'getProduct', { options: { batch }, path, queryParams });
   return { fetchMock, getta, urls };
 };
 
@@ -239,7 +242,7 @@ export const setupGet = function setupGet({ batch, newInstance = true, queryPara
 export const setupGetAll = function setupGetAll({ newInstance = true, resource }) {
   const { url } = mockGetAll({ resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
-  getta.shortcut('get', 'getProducts', { path });
+  getta.shortcut('get', 'getProduct', { path });
   return { fetchMock, getta, url };
 };
 
@@ -253,7 +256,7 @@ export const setupGetAll = function setupGetAll({ newInstance = true, resource }
 export const setupPost = function setupPost({ newInstance = true, resource }) {
   const { url } = mockPost({ resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
-  getta.shortcut('post', 'postProducts', { path });
+  getta.shortcut('post', 'postProduct', { path });
   return { fetchMock, getta, url };
 };
 
