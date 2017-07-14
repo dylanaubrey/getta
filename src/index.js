@@ -291,7 +291,9 @@ export default class RestClient {
     let data;
 
     try {
-      if (await this._cache.has(endpoint)) data = await this._cache.get(endpoint);
+      if (await this._cache.has(endpoint, { deleteExpired: true })) {
+        data = await this._cache.get(endpoint);
+      }
     } catch (err) {
       logger.error(err);
     }
