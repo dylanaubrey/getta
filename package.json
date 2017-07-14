@@ -1,6 +1,6 @@
 {
   "name": "getta",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "An isomorphic rest client based on the Fetch API.",
   "author": "Dylan Aubrey <dylanaubrey@gmail.com>",
   "license": "MIT",
@@ -34,7 +34,7 @@
     "transpile:module": " cross-env BABEL_ENV=module babel src --out-dir lib/module --copy-files"
   },
   "dependencies": {
-    "cachemap": "0.0.2",
+    "cachemap": "0.0.3",
     "es6-promise": "^4.1.0",
     "iso-logger": "0.0.8",
     "isomorphic-fetch": "^2.2.1",

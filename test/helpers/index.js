@@ -22,6 +22,12 @@ export const cachemapOptions = { localStorageOptions: { mock: localStorageMock }
  */
 export const path = 'content/catalog/product';
 
+/**
+ *
+ * @type {Object}
+ */
+export const headers = { 'Cache-Control': 'public, max-age=60', Etag: '33a64df551425fcc55e4d42a148795d9f25f89d4' };
+
 
 /**
  *
@@ -67,7 +73,6 @@ export const mock = function mock({ batch, method, queryParams, resource }) {
   }
 
   const queryString = !queryParams ? '' : buildQueryString(queryParams);
-  const headers = { 'Cache-Control': 'public, max-age=60' };
   const urls = [];
 
   if (!isArray(resource) || batch) {
@@ -101,7 +106,6 @@ export const mockAll = function mockAll({ method, resource }) {
     body.push(data[value].body);
   });
 
-  const headers = { 'Cache-Control': 'public, max-age=60' };
   const url = `${baseURL}${path}`;
   fetchMock.mock(url, { body, headers }, { method, name: url });
   return { url };
@@ -169,7 +173,6 @@ export const mockPost = function mockPost({ resource }) {
     body = data[resource].body;
   }
 
-  const headers = { 'Cache-Control': 'public, max-age=60' };
   const url = `${baseURL}${path}`;
   fetchMock.mock(url, { body, headers }, { method: 'post', name: url });
   return { url };

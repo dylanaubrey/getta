@@ -296,6 +296,9 @@ export default class RestClient {
       logger.error(err);
     }
 
+    // TODO: Check if Etag was returned and if so, send request
+    // to server to validate whether cache is still valid.
+
     if (data && resource) {
       const index = resource.active.findIndex(val => val === value);
       if (index !== -1) resource.active.splice(index, 1);
@@ -417,11 +420,11 @@ export default class RestClient {
       logger.error(err);
     }
 
-    if (errors) return { errors };
+    if (errors) return { errors, status: res.status };
     let body = await res[options.streamReader]();
     body = options.bodyParser(body, context);
-    if (body.errors) return { errors: body.errors };
-    return { data: body.data, headers: res.headers };
+    if (body.errors) return { errors: body.errors, status: res.status };
+    return { data: body.data, headers: res.headers, status: res.status };
   }
 
   /**
@@ -589,7 +592,10 @@ export default class RestClient {
       if (!get(endpoints, [0, 'endpoint'], null)) return;
 
       try {
-        this._cache.set(endpoints[0].endpoint, value, { cacheControl: headers.get('Cache-Control') });
+        this._cache.set(endpoints[0].endpoint, value, { cacheHeaders: {
+          cacheControl: headers.get('Cache-Control'),
+          etag: headers.get('Etag'),
+        } });
       } catch (err) {
         logger.error(err);
       }
