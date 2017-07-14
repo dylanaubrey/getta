@@ -296,9 +296,6 @@ export default class RestClient {
       logger.error(err);
     }
 
-    // TODO: Check if Etag was returned and if so, send request
-    // to server to validate whether cache is still valid.
-
     if (data && resource) {
       const index = resource.active.findIndex(val => val === value);
       if (index !== -1) resource.active.splice(index, 1);
@@ -594,7 +591,6 @@ export default class RestClient {
       try {
         this._cache.set(endpoints[0].endpoint, value, { cacheHeaders: {
           cacheControl: headers.get('Cache-Control'),
-          etag: headers.get('Etag'),
         } });
       } catch (err) {
         logger.error(err);
