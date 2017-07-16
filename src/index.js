@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, flatten, get, isArray, isString, merge } from 'lodash';
+import { castArray, flatten, isArray, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
@@ -53,7 +53,7 @@ export default class RestClient {
      *
      * @type {Object}
      */
-    cachemapOptions,
+    cachemapOptions = {},
     /**
      *
      * Disables caching of responses against request url.
@@ -101,7 +101,11 @@ export default class RestClient {
     this._baseURL = baseURL;
     this._batchLimit = batchLimit;
     this._bodyParser = bodyParser;
-    this._cache = new Cachemap(cachemapOptions);
+
+    this._cache = new Cachemap(
+      merge({ name: 'getta cachemap', redisOptions: { db: 0 } }, cachemapOptions),
+    );
+
     this._disableCaching = disableCaching;
     this._headers = headers;
     this._streamReader = streamReader;
@@ -254,56 +258,21 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Object} context
-   * @param {string} context.path
-   * @param {Object} context.resource
-   * @param {Object} context.queryParams
+   * @param {string} endpoint
    * @return {Promise}
    */
-  async _checkCache({ path, resource, queryParams }) {
+  async _checkCache(endpoint) {
     if (this._disableCaching) return {};
-
-    const endpoints = this._buildEndpoints({
-      path, resource: resource ? resource.active : null, queryParams,
-    });
-
-    const promises = [];
-
-    endpoints.forEach(({ endpoint, values }) => {
-      promises.push(this._checkEntry(endpoint, values, resource));
-    });
-
-    let data = await Promise.all(promises);
-    data = data.filter(value => !!value);
-    const skip = (resource && !resource.active.length) || (!resource && data.length);
-    return { data, skip };
-  }
-
-  /**
-   *
-   * @private
-   * @param {string} endpoint
-   * @param {string} value
-   * @param {Object} resource
-   * @return {Object}
-   */
-  async _checkEntry(endpoint, value, resource) {
-    let data;
+    let cacheability, data;
 
     try {
-      if (await this._cache.has(endpoint, { deleteExpired: true })) {
-        data = await this._cache.get(endpoint);
-      }
+      cacheability = await this._cache.has(endpoint);
+      if (cacheability) data = await this._cache.get(endpoint);
     } catch (err) {
       logger.error(err);
     }
 
-    if (data && resource) {
-      const index = resource.active.findIndex(val => val === value);
-      if (index !== -1) resource.active.splice(index, 1);
-    }
-
-    return data;
+    return { cacheability, data };
   }
 
   /**
@@ -350,47 +319,31 @@ export default class RestClient {
    *
    * @private
    * @param {string} endpoint
-   * @param {Array<string>} values
    * @param {Object} context
    * @param {Object} options
-   * @param {string} resourceKey
    * @return {Promise}
    */
-  async _delete(endpoint, values, context, options, resourceKey) {
-    const res = await this._fetch('DELETE', endpoint, context, options);
-    if (res.errors) return res.errors;
-
-    if (res.data) {
-      const data = castArray(res.data);
-      this._deleteCache(data, context.path, context.queryParams, resourceKey);
-    }
-
-    return res.data;
+  async _delete(endpoint, context, options) {
+    const method = 'DELETE';
+    const fetchOptions = { headers: new Headers(options.headers), method };
+    const { data, errors } = await this._fetch(method, endpoint, fetchOptions, context, options);
+    return errors || data;
   }
 
   /**
    *
    * @private
-   * @param {Array<Object>} data
-   * @param {string} path
-   * @param {Object} queryParams
-   * @param {string} key
+   * @param {string} endpoint
    * @return {Promise}
    */
-  async _deleteCache(data, path, queryParams, key) {
+  async _deleteCacheEntry(endpoint) {
     if (this._disableCaching) return;
 
-    data.forEach((value) => {
-      if (!get(value, [key], null)) return;
-      const endpoints = this._buildEndpoints({ path, queryParams, resource: [value[key]] });
-      if (!get(endpoints, [0, 'endpoint'], null)) return;
-
-      try {
-        this._cache.delete(endpoints[0].endpoint);
-      } catch (err) {
-        logger.error(err);
-      }
-    });
+    try {
+      this._cache.delete(endpoint);
+    } catch (err) {
+      logger.error(err);
+    }
   }
 
   /**
@@ -398,30 +351,24 @@ export default class RestClient {
    * @private
    * @param {string} method
    * @param {string} endpoint
+   * @param {Object} fetchOptions
    * @param {Object} context
    * @param {Object} options
-   * @param {any} content
    * @return {Promise}
    */
-  async _fetch(method, endpoint, context, options, content) {
+  async _fetch(method, endpoint, fetchOptions, context, options) {
     let res, errors;
 
     try {
       logger.info(`${method}: ${this._baseURL}${endpoint}`);
-      let _content;
-      if (content && !isString(content)) _content = JSON.stringify(content);
-
-      res = await fetch(`${this._baseURL}${endpoint}`, {
-        body: _content, headers: new Headers(options.headers), method,
-      });
+      res = await fetch(`${this._baseURL}${endpoint}`, fetchOptions);
     } catch (err) {
       errors = err;
-      logger.error(err);
+      logger.error(errors);
     }
 
     if (errors) return { errors, status: res.status };
-    let body = await res[options.streamReader]();
-    body = options.bodyParser(body, context);
+    const body = options.bodyParser(await res[options.streamReader](), context);
     if (body.errors) return { errors: body.errors, status: res.status };
     return { data: body.data, headers: res.headers, status: res.status };
   }
@@ -437,19 +384,29 @@ export default class RestClient {
    * @return {Promise}
    */
   async _get(endpoint, values, context, options, resourceKey) {
-    const res = await this._fetch('GET', endpoint, context, options);
-    const data = res.data ? castArray(res.data) : [];
-    const errors = res.errors;
-    const _values = values ? castArray(values) : [];
-    this._resolveRequests({ data, errors }, _values, context, resourceKey);
-    if (errors) return errors;
+    const cache = this._checkCache(endpoint);
+    const { cacheability } = cache;
+    let res;
 
-    if (data.length) {
-      this._setCache(data, res.headers, context.path, context.queryParams, resourceKey);
+    if (!cacheability || cacheability.noCache || !cacheability.check()) {
+      const headers = options.headers;
+      const etag = cacheability && cacheability.etag;
+      if (etag) headers['If-None-Match'] = etag;
+      const method = 'GET';
+      const fetchOptions = { headers: new Headers(headers), method };
+      res = await this._fetch(method, endpoint, fetchOptions, context, options);
     }
 
+    let data = !res || res.status === '304' ? cache.data : res.data;
+    const errors = res && res.errors;
+    if (res && !errors) this._setCacheEntry(endpoint, data, res.headers);
+    if (errors && res.status === '404') this._deleteCacheEntry(endpoint);
+    data = data ? castArray(res.data) : [];
+    const _values = values ? castArray(values) : [];
+    this._resolveRequests(resourceKey, _values, { data, errors }, context);
+    if (errors) return errors;
     if (!context.resource) return data;
-    return this._resolveResource(data, resourceKey, context.resource.active);
+    return this._resolveResource(resourceKey, context.resource.active, data);
   }
 
   /**
@@ -503,38 +460,33 @@ export default class RestClient {
    *
    * @private
    * @param {string} endpoint
+   * @param {any} body
    * @param {Object} context
    * @param {Object} options
-   * @param {any} body
-   * @param {string} resourceKey
    * @return {Promise}
    */
-  async _post(endpoint, context, options, body, resourceKey) {
-    const res = await this._fetch('POST', endpoint, context, options, body);
-    if (res.errors) return res.errors;
-
-    if (res.data) {
-      this._setCache(castArray(res.data), res.headers, context.path, null, resourceKey);
-    }
-
-    return res.data;
+  async _post(endpoint, body, context, options) {
+    const method = 'POST';
+    const fetchOptions = { body, headers: new Headers(options.headers), method };
+    const { data, errors } = await this._fetch(method, endpoint, fetchOptions, context, options);
+    return errors || data;
   }
 
   /**
    *
    * @private
+   * @param {string} resourceKey
+   * @param {string|Array<string>} values
    * @param {Object} res
    * @param {Array<Object>} res.data
    * @param {Object} res.errors
-   * @param {string|Array<string>} values
    * @param {Object} context
    * @param {string} context.fetchID
    * @param {string} context.requestID
    * @param {string} context.path
-   * @param {string} resourceKey
    * @return {void}
    */
-  async _resolveRequests({ data, errors }, values, { fetchID, requestID, path }, resourceKey) {
+  async _resolveRequests(resourceKey, values, { data, errors }, { fetchID, requestID, path }) {
     if (!values.length) return;
     const { fetching, pending } = this._getTracker(requestID, path);
 
@@ -556,12 +508,12 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Object|Array<Object>} data
    * @param {string} key
    * @param {Array<string>} values
+   * @param {Object|Array<Object>} data
    * @return {Array<Object>}
    */
-  _resolveResource(data, key, values) {
+  _resolveResource(key, values, data) {
     const filtered = [];
 
     values.forEach((value) => {
@@ -575,29 +527,22 @@ export default class RestClient {
   /**
    *
    * @private
+   * @param {string} endpoint
    * @param {Array<Object>} data
    * @param {Headers} headers
-   * @param {string} path
-   * @param {Object} queryParams
-   * @param {string} key
    * @return {Promise}
    */
-  async _setCache(data, headers, path, queryParams, key) {
+  async _setCacheEntry(endpoint, data, headers) {
     if (this._disableCaching) return;
 
-    data.forEach((value) => {
-      if (!get(value, [key], null)) return;
-      const endpoints = this._buildEndpoints({ path, queryParams, resource: [value[key]] });
-      if (!get(endpoints, [0, 'endpoint'], null)) return;
-
-      try {
-        this._cache.set(endpoints[0].endpoint, value, { cacheHeaders: {
-          cacheControl: headers.get('Cache-Control'),
-        } });
-      } catch (err) {
-        logger.error(err);
-      }
-    });
+    try {
+      this._cache.set(endpoint, data, { cacheHeaders: {
+        cacheControl: headers.get('Cache-Control'),
+        etag: headers.get('Etag'),
+      } });
+    } catch (err) {
+      logger.error(err);
+    }
   }
 
   /**
@@ -684,7 +629,6 @@ export default class RestClient {
    * @param {string} config.path
    * @param {Object} [config.queryParams]
    * @param {Object} [config.resource]
-   * @param {string} [config.resourceKey]
    * @return {Promise}
    */
   async delete({
@@ -693,7 +637,6 @@ export default class RestClient {
     path,
     queryParams = null,
     resource = null,
-    resourceKey = 'id',
   } = {}) {
     if (!path) return null;
     const _context = this._setContext('DELETE', path, resource, queryParams, context);
@@ -705,13 +648,11 @@ export default class RestClient {
 
     const promises = [];
 
-    endpoints.forEach(({ endpoint, values }) => {
-      promises.push(this._delete(endpoint, values, _context, _options, resourceKey));
+    endpoints.forEach(({ endpoint }) => {
+      promises.push(this._delete(endpoint, _context, _options));
     });
 
-    let res = flatten(await Promise.all(promises));
-    res = res.filter(value => !!value);
-    return res;
+    return flatten(await Promise.all(promises)).filter(value => !!value);
   }
 
   /**
@@ -736,8 +677,6 @@ export default class RestClient {
     if (!path) return null;
     const _context = this._setContext('GET', path, resource, queryParams, context);
     const _options = this._setOptions(options);
-    const check = await this._checkCache(_context);
-    if (check.skip) return check.data;
     let endpointsResource, skip;
     let promises = [];
 
@@ -765,10 +704,7 @@ export default class RestClient {
       });
     }
 
-    let data = flatten(await Promise.all(promises));
-    if (check.data.length) data = [...data, ...check.data];
-    data = data.filter(value => !!value);
-    return data;
+    return flatten(await Promise.all(promises)).filter(value => !!value);
   }
 
   /**
@@ -790,7 +726,6 @@ export default class RestClient {
     path,
     queryParams = null,
     resource = null,
-    resourceKey = 'id',
   } = {}) {
     if (!path || !body) return null;
     const _context = this._setContext('POST', path, resource, queryParams, context);
@@ -799,12 +734,10 @@ export default class RestClient {
     const promises = [];
 
     endpoints.forEach(({ endpoint }) => {
-      promises.push(this._post(endpoint, _context, _options, body, resourceKey));
+      promises.push(this._post(endpoint, body, _context, _options));
     });
 
-    let data = flatten(await Promise.all(promises));
-    data = data.filter(value => !!value);
-    return data;
+    return flatten(await Promise.all(promises)).filter(value => !!value);
   }
 
   /**
