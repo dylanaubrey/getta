@@ -631,13 +631,7 @@ export default class RestClient {
    * @param {Object} [config.resource]
    * @return {Promise}
    */
-  async delete({
-    context = {},
-    options = {},
-    path,
-    queryParams = null,
-    resource = null,
-  } = {}) {
+  async delete({ context = {}, options = {}, path, queryParams = null, resource = null } = {}) {
     if (!path) return null;
     const _context = this._setContext('DELETE', path, resource, queryParams, context);
     const _options = this._setOptions(options);
@@ -666,14 +660,7 @@ export default class RestClient {
    * @param {string} [config.resourceKey]
    * @return {Promise}
    */
-  async get({
-    context = {},
-    options = {},
-    path,
-    queryParams = null,
-    resource = null,
-    resourceKey = 'id',
-  } = {}) {
+  async get({ context = {}, options = {}, path, queryParams = null, resource = null, resourceKey = 'id' } = {}) {
     if (!path) return null;
     const _context = this._setContext('GET', path, resource, queryParams, context);
     const _options = this._setOptions(options);
@@ -719,14 +706,7 @@ export default class RestClient {
    * @param {string} [config.resourceKey]
    * @return {Promise}
    */
-  async post({
-    body,
-    context = {},
-    options = {},
-    path,
-    queryParams = null,
-    resource = null,
-  } = {}) {
+  async post({ body, context = {}, options = {}, path, queryParams = null, resource = null } = {}) {
     if (!path || !body) return null;
     const _context = this._setContext('POST', path, resource, queryParams, context);
     const _options = this._setOptions(options);
