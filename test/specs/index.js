@@ -129,33 +129,43 @@ describe('the .get() method', () => {
   });
 
   describe('when one requested resource is in the cache', () => {
-    let fetchMock, getta, res, urls;
-    const resource = '136-7317';
+    describe('when the cached resource is valid', () => {
+      let fetchMock, getta, res, urls;
+      const resource = '136-7317';
 
-    before(async () => {
-      const setup = setupGet({ resource });
-      fetchMock = setup.fetchMock;
-      getta = setup.getta;
-      urls = setup.urls;
-      await getta.getProduct({ resource });
+      before(async () => {
+        const setup = setupGet({ resource });
+        fetchMock = setup.fetchMock;
+        getta = setup.getta;
+        urls = setup.urls;
+        await getta.getProduct({ resource });
+      });
+
+      after(async () => {
+        fetchMock.restore();
+        await getta._cache.clear();
+      });
+
+      beforeEach(async () => {
+        fetchMock.reset();
+        res = await getta.getProduct({ resource });
+      });
+
+      it('should return the requested data', () => {
+        expect(res[0]).to.eql(data[resource].body);
+      });
+
+      it('should not have fetched the data from the server', async () => {
+        expect(fetchMock.called(urls[0])).to.be.false();
+      });
     });
 
-    after(async () => {
-      fetchMock.restore();
-      await getta._cache.clear();
+    describe('when the cached resource is expired and server return not modified header', () => {
+      // TODO:...
     });
 
-    beforeEach(async () => {
-      fetchMock.reset();
-      res = await getta.getProduct({ resource });
-    });
-
-    it('should return the requested data', () => {
-      expect(res[0]).to.eql(data[resource].body);
-    });
-
-    it('should not have fetched the data from the server', async () => {
-      expect(fetchMock.called(urls[0])).to.be.false();
+    describe('when the cached resource is expired and server returns new resource', () => {
+      // TODO:...
     });
   });
 
