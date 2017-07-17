@@ -26,8 +26,7 @@ export const path = 'content/catalog/product';
  *
  * @type {Object}
  */
-export const headers = { 'Cache-Control': 'public, max-age=60', Etag: '33a64df551425fcc55e4d42a148795d9f25f89d4' };
-
+export const headers = { 'Cache-Control': 'public, max-age=6000', Etag: '33a64df551425fcc55e4d42a148795d9f25f89d4' };
 
 /**
  *
@@ -54,7 +53,7 @@ export const buildQueryString = function buildQueryString(queryParams) {
  * @param {string} config.method
  * @param {Object} config.queryParams
  * @param {Array<string>} config.resource
- * @return {Object}
+ * @return {Array<string>}
  */
 export const mock = function mock({ batch, method, queryParams, resource }) {
   let body, ids;
@@ -89,7 +88,7 @@ export const mock = function mock({ batch, method, queryParams, resource }) {
     });
   }
 
-  return { urls };
+  return urls;
 };
 
 /**
@@ -97,7 +96,7 @@ export const mock = function mock({ batch, method, queryParams, resource }) {
  * @param {Object} config
  * @param {string} config.method
  * @param {Array<string>} config.resource
- * @return {Object}
+ * @return {string}
  */
 export const mockAll = function mockAll({ method, resource }) {
   const body = [];
@@ -108,7 +107,7 @@ export const mockAll = function mockAll({ method, resource }) {
 
   const url = `${baseURL}${path}`;
   fetchMock.mock(url, { body, headers }, { method, name: url });
-  return { url };
+  return url;
 };
 
 /**
@@ -158,7 +157,7 @@ export const mockGetAll = function mockGetAll({ resource }) {
  *
  * @param {Object} config
  * @param {Array<string>} config.resource
- * @return {Object}
+ * @return {string}
  */
 export const mockPost = function mockPost({ resource }) {
   let body;
@@ -175,7 +174,7 @@ export const mockPost = function mockPost({ resource }) {
 
   const url = `${baseURL}${path}`;
   fetchMock.mock(url, { body, headers }, { method: 'post', name: url });
-  return { url };
+  return url;
 };
 
 /**
@@ -196,7 +195,7 @@ export const productArgs = function productArgs(resource) {
  * @return {Object}
  */
 export const setupDelete = function setupDelete({ batch, newInstance = true, resource }) {
-  const { urls } = mockDelete({ batch, resource });
+  const urls = mockDelete({ batch, resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
   getta.shortcut('delete', 'deleteProduct', { options: { batch }, path });
   return { fetchMock, getta, urls };
@@ -210,7 +209,7 @@ export const setupDelete = function setupDelete({ batch, newInstance = true, res
  * @return {Object}
  */
 export const setupDeleteAll = function setupDeleteAll({ newInstance = true, resource }) {
-  const { url } = mockDeleteAll({ resource });
+  const url = mockDeleteAll({ resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
   getta.shortcut('delete', 'deleteProduct', { path });
   return { fetchMock, getta, url };
@@ -226,7 +225,7 @@ export const setupDeleteAll = function setupDeleteAll({ newInstance = true, reso
  * @return {Object}
  */
 export const setupGet = function setupGet({ batch, newInstance = true, queryParams, resource }) {
-  const { urls } = mockGet({ batch, queryParams, resource });
+  const urls = mockGet({ batch, queryParams, resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
   getta.shortcut('get', 'getProduct', { options: { batch }, path, queryParams });
   return { fetchMock, getta, urls };
@@ -240,7 +239,7 @@ export const setupGet = function setupGet({ batch, newInstance = true, queryPara
  * @return {Object}
  */
 export const setupGetAll = function setupGetAll({ newInstance = true, resource }) {
-  const { url } = mockGetAll({ resource });
+  const url = mockGetAll({ resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
   getta.shortcut('get', 'getProduct', { path });
   return { fetchMock, getta, url };
@@ -254,7 +253,7 @@ export const setupGetAll = function setupGetAll({ newInstance = true, resource }
  * @return {Object}
  */
 export const setupPost = function setupPost({ newInstance = true, resource }) {
-  const { url } = mockPost({ resource });
+  const url = mockPost({ resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
   getta.shortcut('post', 'postProduct', { path });
   return { fetchMock, getta, url };

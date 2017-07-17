@@ -384,7 +384,7 @@ export default class RestClient {
    * @return {Promise}
    */
   async _get(endpoint, values, context, options, resourceKey) {
-    const cache = this._checkCache(endpoint);
+    const cache = await this._checkCache(endpoint);
     const { cacheability } = cache;
     let res;
 
@@ -401,7 +401,7 @@ export default class RestClient {
     const errors = res && res.errors;
     if (res && !errors) this._setCacheEntry(endpoint, data, res.headers);
     if (errors && res.status === '404') this._deleteCacheEntry(endpoint);
-    data = data ? castArray(res.data) : [];
+    data = data ? castArray(data) : [];
     const _values = values ? castArray(values) : [];
     this._resolveRequests(resourceKey, _values, { data, errors }, context);
     if (errors) return errors;
@@ -736,6 +736,6 @@ export default class RestClient {
      * @param {Object} [config]
      * @return {void}
      */
-    this[name] = (config = {}) => this[method](merge(baseConfig, config));
+    this[name] = (config = {}) => this[method](merge({}, baseConfig, config));
   }
 }
