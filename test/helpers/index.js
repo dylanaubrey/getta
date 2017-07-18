@@ -26,7 +26,11 @@ export const path = 'content/catalog/product';
  *
  * @type {Object}
  */
-export const defaultHeaders = { 'Cache-Control': 'public, max-age=6000', Etag: '33a64df551425fcc55e4d42a148795d9f25f89d4' };
+export const defaultHeaders = {
+  'cache-control': 'public, max-age=6000',
+  'content-type': 'application/json',
+  etag: '33a64df551425fcc55e4d42a148795d9f25f89d4',
+};
 
 /**
  *

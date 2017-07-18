@@ -159,8 +159,48 @@ describe('the .get() method', () => {
       });
     });
 
-    describe('when the cached resource is expired and server return not modified header', () => {
-      // TODO:...
+    describe('when the cached resource is expired and server returns not modified header', () => {
+      let getta, res;
+      const resource = '136-7317';
+
+      before(async () => {
+        const etag = '33a64df551425fcc55e4d42a148795d9f25f89d4';
+        const notModifiedHeaders = { 'cache-control': 'public, no-cache, max-age=6000', etag };
+        const headers = { ...notModifiedHeaders, ...{ 'content-type': 'application/json' } };
+
+        const matcher = (url, opts) => {
+          if (!opts.headers) return false;
+          return opts.headers.get('if-none-match') === etag;
+        };
+
+        fetchMock.mock(
+          matcher,
+          { status: 304, headers: notModifiedHeaders },
+          { headers: { 'if-none-match': etag } },
+        );
+
+        const setup = setupGet({ headers, resource });
+        getta = setup.getta;
+        await getta.getProduct({ resource });
+      });
+
+      after(async () => {
+        fetchMock.restore();
+        await getta._cache.clear();
+      });
+
+      beforeEach(async () => {
+        fetchMock.reset();
+        res = await getta.getProduct({ resource });
+      });
+
+      it('should return the requested data', () => {
+        expect(res[0]).to.eql(data[resource].body);
+      });
+
+      it('should not have fetched the data from the server', async () => {
+        // TODO:...
+      });
     });
 
     describe('when the cached resource is expired and server returns new resource', () => {

@@ -357,20 +357,21 @@ export default class RestClient {
    * @return {Promise}
    */
   async _fetch(method, endpoint, fetchOptions, context, options) {
-    let res, errors;
+    let res, error;
 
     try {
       logger.info(`${method}: ${this._baseURL}${endpoint}`);
       res = await fetch(`${this._baseURL}${endpoint}`, fetchOptions);
     } catch (err) {
-      errors = err;
-      logger.error(errors);
+      error = err;
+      logger.error(error);
     }
 
-    if (errors) return { errors, status: res.status };
-    const body = options.bodyParser(await res[options.streamReader](), context);
-    if (body.errors) return { errors: body.errors, status: res.status };
-    return { data: body.data, headers: res.headers, status: res.status };
+    const { headers, status } = res;
+    if (error) return { headers, errors: error, status };
+    if (!headers.get('content-type')) return { headers, status };
+    const { data, errors } = options.bodyParser(await res[options.streamReader](), context);
+    return { data, errors, headers, status };
   }
 
   /**
@@ -397,7 +398,7 @@ export default class RestClient {
       res = await this._fetch(method, endpoint, fetchOptions, context, options);
     }
 
-    let data = !res || res.status === '304' ? cache.data : res.data;
+    let data = !res || res.status === 304 ? cache.data : res.data;
     const errors = res && res.errors;
     if (res && !errors) this._setCacheEntry(endpoint, data, res.headers);
     if (errors && res.status === '404') this._deleteCacheEntry(endpoint);
