@@ -1,5 +1,6 @@
 import chai, { expect } from 'chai';
 import dirtyChai from 'dirty-chai';
+import fetchMock from 'fetch-mock';
 import { flatten } from 'lodash';
 import sinonChai from 'sinon-chai';
 import data, { getValues } from '../data';
@@ -58,12 +59,11 @@ describe('when the Getta class is initialised', () => {
 
 describe('the .get() method', () => {
   describe('when one resource is requested from the server', () => {
-    let fetchMock, getta, res;
+    let getta, res;
     const resource = '136-7317';
 
     before(() => {
       const setup = setupGet({ resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -91,13 +91,12 @@ describe('the .get() method', () => {
   });
 
   describe('when one resource is requested from the server using a shortcut', () => {
-    let fetchMock, getta, res;
+    let getta, res;
     const queryParams = { format: 'standard' };
     const resource = '136-7317';
 
     before(() => {
       const setup = setupGet({ queryParams, resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -130,12 +129,12 @@ describe('the .get() method', () => {
 
   describe('when one requested resource is in the cache', () => {
     describe('when the cached resource is valid', () => {
-      let fetchMock, getta, res, urls;
+      let getta, res, urls;
       const resource = '136-7317';
 
       before(async () => {
         const setup = setupGet({ resource });
-        fetchMock = setup.fetchMock;
+
         getta = setup.getta;
         urls = setup.urls;
         await getta.getProduct({ resource });
@@ -174,7 +173,7 @@ describe('the .get() method', () => {
   });
 
   describe('when batched resources are requested from the server', () => {
-    let fetchMock, getta, res;
+    let getta, res;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
     const batchOne = ['136-7317', '180-1387'];
     const batchTwo = ['183-3905', '202-3315'];
@@ -182,7 +181,6 @@ describe('the .get() method', () => {
     before(() => {
       mockGet({ batch: true, resource: batchOne });
       const setup = setupGet({ batch: true, resource: batchTwo });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -213,7 +211,7 @@ describe('the .get() method', () => {
   });
 
   describe('when batched requested resources are returned from the server and cache', () => {
-    let fetchMock, getta, res, urls;
+    let getta, res, urls;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
     const batchOne = ['136-7317', '180-1387'];
     const batchTwo = ['183-3905', '202-3315'];
@@ -221,7 +219,6 @@ describe('the .get() method', () => {
     before(() => {
       urls = mockGet({ batch: true, resource: batchOne });
       const setup = setupGet({ batch: true, resource: batchTwo });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -262,12 +259,11 @@ describe('the .get() method', () => {
   });
 
   describe('when separate resources are batched and requested from the server', () => {
-    let fetchMock, getta, res;
+    let getta, res;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
     before(() => {
       const setup = setupGet({ batch: true, resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -302,12 +298,11 @@ describe('the .get() method', () => {
   });
 
   describe('when all resources are requested from the server', () => {
-    let fetchMock, getta, res;
+    let getta, res;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
     before(() => {
       const setup = setupGetAll({ resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -338,12 +333,11 @@ describe('the .get() method', () => {
 
 describe('the .post() method', () => {
   describe('when one resource is created and returned from the server', () => {
-    let fetchMock, getta, res;
+    let getta, res;
     const resource = '136-7317';
 
     before(() => {
       const setup = setupPost({ resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -368,12 +362,11 @@ describe('the .post() method', () => {
 
 describe('the .delete() method', () => {
   describe('when one resource is requested to be deleted on the server', () => {
-    let fetchMock, getta;
+    let getta;
     const resource = '136-7317';
 
     before(() => {
       const setup = setupDelete({ resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -388,12 +381,11 @@ describe('the .delete() method', () => {
   });
 
   describe('when batched resources are requested to be deleted on the server', () => {
-    let fetchMock, getta;
+    let getta;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
     before(() => {
       const setup = setupDelete({ batch: true, resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 
@@ -408,12 +400,11 @@ describe('the .delete() method', () => {
   });
 
   describe('when all resources are requested to be deleted on the server', () => {
-    let fetchMock, getta;
+    let getta;
     const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
 
     before(() => {
       const setup = setupDeleteAll({ resource });
-      fetchMock = setup.fetchMock;
       getta = setup.getta;
     });
 

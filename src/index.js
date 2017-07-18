@@ -117,38 +117,6 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {string} path
-   * @param {Object} tracker
-   * @param {string} resource
-   * @param {string} fetchID
-   * @param {string} requestID
-   * @return {Object}
-   */
-  _addToFetch(path, tracker, resource, fetchID, requestID) {
-    const index = tracker.active.findIndex(obj => obj.value === resource);
-    const activeMatch = (index !== -1) ? tracker.active.splice(index, 1)[0] : null;
-    const activeFetchID = activeMatch ? activeMatch.fetchID : fetchID;
-    const fetchMatch = tracker.fetching.find(obj => obj.value === resource);
-    const promises = [];
-
-    if (!fetchMatch) {
-      tracker.fetching.push({ fetchID: activeFetchID, value: resource });
-      return { promises };
-    }
-
-    if (!tracker.pending[resource]) tracker.pending[resource] = [];
-
-    promises.push(this._setPendingRequest(
-      tracker.pending[resource], { fetchID: fetchMatch.fetchID },
-    ));
-
-    this._updatePendingRequests({ fetchID: fetchMatch.fetchID, resource }, requestID, path);
-    return { pending: true, promises };
-  }
-
-  /**
-   *
-   * @private
    * @param {Object} context
    * @param {string} context.path
    * @param {Object} context.resource
@@ -165,9 +133,9 @@ export default class RestClient {
     let promises = [];
 
     for (let i = resource.active.length - 1; i >= 0; i -= 1) {
-      const added = this._addToFetch(path, tracker, resource.active[i], fetchID, requestID);
-      promises = [...promises, ...added.promises];
-      if (added.pending) resource.pending = [...resource.pending, ...resource.active.splice(i, 1)];
+      const dedup = this._dedupFetch(path, tracker, resource.active[i], fetchID, requestID);
+      promises = [...promises, ...dedup.promises];
+      if (dedup.pending) resource.pending = [...resource.pending, ...resource.active.splice(i, 1)];
     }
 
     const skip = !resource.active.length;
@@ -285,7 +253,7 @@ export default class RestClient {
    * @param {string} context.requestID
    * @return {Object}
    */
-  _dedupRequest({ path, resource, fetchID, requestID }) {
+  _dedupActive({ path, resource, fetchID, requestID }) {
     const tracker = this._getTracker(requestID, path);
     const promises = [];
 
@@ -313,6 +281,38 @@ export default class RestClient {
     }
 
     return { promises };
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} path
+   * @param {Object} tracker
+   * @param {string} resource
+   * @param {string} fetchID
+   * @param {string} requestID
+   * @return {Object}
+   */
+  _dedupFetch(path, tracker, resource, fetchID, requestID) {
+    const index = tracker.active.findIndex(obj => obj.value === resource);
+    const activeMatch = (index !== -1) ? tracker.active.splice(index, 1)[0] : null;
+    const activeFetchID = activeMatch ? activeMatch.fetchID : fetchID;
+    const fetchMatch = tracker.fetching.find(obj => obj.value === resource);
+    const promises = [];
+
+    if (!fetchMatch) {
+      tracker.fetching.push({ fetchID: activeFetchID, value: resource });
+      return { promises };
+    }
+
+    if (!tracker.pending[resource]) tracker.pending[resource] = [];
+
+    promises.push(this._setPendingRequest(
+      tracker.pending[resource], { fetchID: fetchMatch.fetchID },
+    ));
+
+    this._updatePendingRequests({ fetchID: fetchMatch.fetchID, resource }, requestID, path);
+    return { pending: true, promises };
   }
 
   /**
@@ -668,7 +668,7 @@ export default class RestClient {
     let promises = [];
 
     if (resource) {
-      const dedup = this._dedupRequest(_context);
+      const dedup = this._dedupActive(_context);
 
       const batch = await new Promise((resolve) => {
         setImmediate(() => {
