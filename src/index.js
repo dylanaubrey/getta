@@ -369,6 +369,16 @@ export default class RestClient {
 
     const { headers, status } = res;
     if (error) return { headers, errors: error, status };
+
+    if (status > 300 && status < 400 && headers.get('location')) {
+      const errors = 'The request exceeded the maximum number of redirects.';
+      context.redirects = context.redirects ? context.redirects + 1 : 1;
+      if (context.redirects > 5) return { errors };
+      const redirectMethod = status === 303 ? 'GET' : method;
+      const location = headers.get('location');
+      return this._fetch(redirectMethod, location, fetchOptions, context, options);
+    }
+
     if (!headers.get('content-type')) return { headers, status };
     const { data, errors } = options.bodyParser(await res[options.streamReader](), context);
     return { data, errors, headers, status };
