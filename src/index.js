@@ -121,19 +121,18 @@ export default class RestClient {
    * @param {string} context.path
    * @param {Object} context.resource
    * @param {string} context.fetchID
-   * @param {string} context.requestID
    * @param {Object} options
    * @param {boolean} options.batch
    * @param {number} options.batchLimit
    * @return {Object}
    */
-  _batchRequest({ path, resource, fetchID, requestID }, { batch, batchLimit }) {
-    const tracker = this._getTracker(requestID, path);
+  _batchRequest({ path, resource, fetchID }, { batch, batchLimit }) {
+    const tracker = this._getTracker(path);
 
     let promises = [];
 
     for (let i = resource.active.length - 1; i >= 0; i -= 1) {
-      const dedup = this._dedupFetch(path, tracker, resource.active[i], fetchID, requestID);
+      const dedup = this._dedupFetch(path, tracker, resource.active[i], fetchID);
       promises = [...promises, ...dedup.promises];
       if (dedup.pending) resource.pending = [...resource.pending, ...resource.active.splice(i, 1)];
     }
@@ -147,11 +146,7 @@ export default class RestClient {
         for (let i = tracker.active.length - 1; i >= 0; i -= 1) {
           resource.batched.push(tracker.active[i].value);
           tracker.fetching.push({ fetchID, value: tracker.active[i].value });
-
-          this._updatePendingRequests(
-            { fetchID, resource: tracker.active[i].value }, requestID, path,
-          );
-
+          this._updatePendingRequests({ fetchID, resource: tracker.active[i].value }, path);
           tracker.active.splice(i, 1);
           if (resource.batched.length === batchLimit) break;
         }
@@ -250,11 +245,10 @@ export default class RestClient {
    * @param {string} context.path
    * @param {Object} context.resource
    * @param {string} context.fetchID
-   * @param {string} context.requestID
    * @return {Object}
    */
-  _dedupActive({ path, resource, fetchID, requestID }) {
-    const tracker = this._getTracker(requestID, path);
+  _dedupActive({ path, resource, fetchID }) {
+    const tracker = this._getTracker(path);
     const promises = [];
 
     if (!tracker.active.length) {
@@ -290,10 +284,9 @@ export default class RestClient {
    * @param {Object} tracker
    * @param {string} resource
    * @param {string} fetchID
-   * @param {string} requestID
    * @return {Object}
    */
-  _dedupFetch(path, tracker, resource, fetchID, requestID) {
+  _dedupFetch(path, tracker, resource, fetchID) {
     const index = tracker.active.findIndex(obj => obj.value === resource);
     const activeMatch = (index !== -1) ? tracker.active.splice(index, 1)[0] : null;
     const activeFetchID = activeMatch ? activeMatch.fetchID : fetchID;
@@ -311,7 +304,7 @@ export default class RestClient {
       tracker.pending[resource], { fetchID: fetchMatch.fetchID },
     ));
 
-    this._updatePendingRequests({ fetchID: fetchMatch.fetchID, resource }, requestID, path);
+    this._updatePendingRequests({ fetchID: fetchMatch.fetchID, resource }, path);
     return { pending: true, promises };
   }
 
@@ -423,16 +416,12 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {string} requestID
    * @param {string} path
-   * @param {string} method
    * @return {string}
    */
-  _getTracker(requestID, path) {
-    if (requestID && !this._tracker[requestID]) this._tracker[requestID] = {};
-    let tracker = requestID ? this._tracker[requestID] : this._tracker;
-    if (!tracker[path]) tracker[path] = {};
-    tracker = tracker[path];
+  _getTracker(path) {
+    if (!this._tracker[path]) this._tracker[path] = {};
+    const tracker = this._tracker[path];
     if (!tracker.active) tracker.active = [];
     if (!tracker.fetching) tracker.fetching = [];
     if (!tracker.pending) tracker.pending = {};
@@ -493,13 +482,12 @@ export default class RestClient {
    * @param {Object} res.errors
    * @param {Object} context
    * @param {string} context.fetchID
-   * @param {string} context.requestID
    * @param {string} context.path
    * @return {void}
    */
-  async _resolveRequests(resourceKey, values, { data, errors }, { fetchID, requestID, path }) {
+  async _resolveRequests(resourceKey, values, { data, errors }, { fetchID, path }) {
     if (!values.length) return;
-    const { fetching, pending } = this._getTracker(requestID, path);
+    const { fetching, pending } = this._getTracker(path);
 
     values.forEach((value) => {
       const index = fetching.findIndex(obj => obj.value === value);
@@ -548,8 +536,8 @@ export default class RestClient {
 
     try {
       this._cache.set(endpoint, data, { cacheHeaders: {
-        cacheControl: headers.get('Cache-Control'),
-        etag: headers.get('Etag'),
+        cacheControl: headers.get('cache-control'),
+        etag: headers.get('etag'),
       } });
     } catch (err) {
       logger.error(err);
@@ -618,12 +606,11 @@ export default class RestClient {
    * @param {Object} context
    * @param {string} context.fetchID
    * @param {string} context.resource
-   * @param {string} requestID
    * @param {string} path
    * @return {void}
    */
-  _updatePendingRequests({ fetchID, resource }, requestID, path) {
-    const { pending } = this._getTracker(requestID, path);
+  _updatePendingRequests({ fetchID, resource }, path) {
+    const { pending } = this._getTracker(path);
 
     if (pending[resource]) {
       pending[resource].forEach((obj) => {
@@ -714,7 +701,6 @@ export default class RestClient {
    * @param {string} config.path
    * @param {Object} [config.queryParams]
    * @param {Object} [config.resource]
-   * @param {string} [config.resourceKey]
    * @return {Promise}
    */
   async post({ body, context = {}, options = {}, path, queryParams = null, resource = null } = {}) {
@@ -739,7 +725,7 @@ export default class RestClient {
    * @return {void}
    */
   shortcut(method, name, baseConfig) {
-    const methods = ['get', 'post', 'put', 'delete'];
+    const methods = ['get', 'head', 'patch', 'post', 'put', 'delete'];
     if (!methods.find(value => value === method)) return;
 
     /**
