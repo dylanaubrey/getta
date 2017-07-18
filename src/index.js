@@ -401,7 +401,7 @@ export default class RestClient {
     let data = !res || res.status === 304 ? cache.data : res.data;
     const errors = res && res.errors;
     if (res && !errors) this._setCacheEntry(endpoint, data, res.headers);
-    if (errors && res.status === '404') this._deleteCacheEntry(endpoint);
+    if (errors && res.status === 404) this._deleteCacheEntry(endpoint);
     data = data ? castArray(data) : [];
     const _values = values ? castArray(values) : [];
     this._resolveRequests(resourceKey, _values, { data, errors }, context);
