@@ -368,43 +368,25 @@ export default class RestClient {
 
     const { headers, ok, status, statusText } = res;
     const responseGroup = getResponseGroup(status);
+    const metadata = { ok, responseGroup, status, statusText };
 
     if (responseGroup === 'redirection' && headers.get('location')) {
-      errors = 'The request exceeded the maximum number of redirects.';
-      context.redirects = context.redirects ? context.redirects + 1 : 1;
-
-      if (context.redirects > 5) {
-        fetched[fetchID] = { errors, ok, responseGroup, status, statusText };
-        return { headers, ok, responseGroup, status };
-      }
-
-      const redirectMethod = status === 303 ? 'GET' : method;
-      const location = headers.get('location');
-      return this._fetch(redirectMethod, location, fetchOptions, context, options);
+      return this._handleRedirect(method, fetchOptions, context, options, headers, metadata);
     }
 
     if (responseGroup === 'serverError') {
-      context.retries = context.retries ? context.retries + 1 : 1;
-      context.retryTimer = context.retryTimer ? context.retryTimer * 2 : 100;
-
-      if (context.retries > 3) {
-        fetched[fetchID] = { ok, responseGroup, status, statusText };
-        return { headers, ok, responseGroup, status };
-      }
-
-      await sleep(context.retryTimer);
-      return this._fetch(method, endpoint, fetchOptions, context, options);
+      return this._handleRetry(method, endpoint, fetchOptions, context, options, headers, metadata);
     }
 
     if (!headers.get('content-type')) {
-      fetched[fetchID] = { ok, responseGroup, status, statusText };
-      return { headers, ok, responseGroup, status };
+      fetched[fetchID] = metadata;
+      return { headers, ...metadata };
     }
 
     const parsed = options.bodyParser(await res[options.streamReader](), context);
-    fetched[fetchID] = { ok, responseGroup, status, statusText };
+    fetched[fetchID] = { ...metadata };
     if (parsed.errors) fetched[fetchID].errors = parsed.errors;
-    return { data: parsed.data, headers, ok, responseGroup, status };
+    return { data: parsed.data, headers, ...metadata };
   }
 
   /**
@@ -455,6 +437,58 @@ export default class RestClient {
     if (!tracker.pending) tracker.pending = {};
     if (!tracker.fetched) tracker.fetched = {};
     return tracker;
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} method
+   * @param {Object} fetchOptions
+   * @param {Object} context
+   * @param {Object} options
+   * @param {Headers} headers
+   * @param {Object} metadata
+   * @return {Promise}
+   */
+  async _handleRedirect(method, fetchOptions, context, options, headers, metadata) {
+    const errors = 'The request exceeded the maximum number of redirects.';
+    context.redirects = context.redirects ? context.redirects + 1 : 1;
+    const { fetched } = this._getTracker(context.path);
+
+    if (context.redirects > 5) {
+      fetched[context.fetchID] = { errors, ...metadata };
+      return { headers, ...metadata };
+    }
+
+    const redirectMethod = status === 303 ? 'GET' : method;
+    const location = headers.get('location');
+    return this._fetch(redirectMethod, location, fetchOptions, context, options);
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} method
+   * @param {string} endpoint
+   * @param {Object} fetchOptions
+   * @param {Object} context
+   * @param {Object} options
+   * @param {Headers} headers
+   * @param {Object} metadata
+   * @return {Promise}
+   */
+  async _handleRetry(method, endpoint, fetchOptions, context, options, headers, metadata) {
+    context.retries = context.retries ? context.retries + 1 : 1;
+    context.retryTimer = context.retryTimer ? context.retryTimer * 2 : 100;
+    const { fetched } = this._getTracker(context.path);
+
+    if (context.retries > 3) {
+      fetched[context.fetchID] = metadata;
+      return { headers, ...metadata };
+    }
+
+    await sleep(context.retryTimer);
+    return this._fetch(method, endpoint, fetchOptions, context, options);
   }
 
   /**
