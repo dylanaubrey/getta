@@ -1,6 +1,7 @@
 import Cachemap from 'cachemap';
-import { castArray, flatten, merge } from 'lodash';
+import { castArray, flatten, get, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
+import getResponseGroup from './helpers';
 import logger from './logger';
 
 require('es6-promise').polyfill();
@@ -38,9 +39,6 @@ export default class RestClient {
      *
      * Optional function used to parse the body of
      * a response prior the client returning it.
-     * The client requires any data returned to be
-     * on a property of 'data' and any errors returned
-     * to be on a property of 'errors'.
      *
      * @param {any} body
      * @return {Object}
@@ -319,8 +317,8 @@ export default class RestClient {
   async _delete(endpoint, context, options) {
     const method = 'DELETE';
     const fetchOptions = { headers: new Headers(options.headers), method };
-    const { data, errors } = await this._fetch(method, endpoint, fetchOptions, context, options);
-    return errors || data;
+    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options);
+    return data;
   }
 
   /**
@@ -350,31 +348,52 @@ export default class RestClient {
    * @return {Promise}
    */
   async _fetch(method, endpoint, fetchOptions, context, options) {
-    let res, error;
+    let res, errors;
 
     try {
       logger.info(`${method}: ${this._baseURL}${endpoint}`);
       res = await fetch(`${this._baseURL}${endpoint}`, fetchOptions);
     } catch (err) {
-      error = err;
-      logger.error(error);
+      errors = err;
+      logger.error(errors);
     }
 
-    const { headers, status } = res;
-    if (error) return { headers, errors: error, status };
+    const { fetched } = this._getTracker(context.path);
+    const fetchID = context.fetchID;
 
-    if (status > 300 && status < 400 && headers.get('location')) {
-      const errors = 'The request exceeded the maximum number of redirects.';
+    if (errors) {
+      fetched[fetchID] = { errors };
+      return {};
+    }
+
+    const { headers, ok, status, statusText } = res;
+    const responseGroup = getResponseGroup(status);
+
+    if (responseGroup === 'redirection' && headers.get('location')) {
+      errors = 'The request exceeded the maximum number of redirects.';
       context.redirects = context.redirects ? context.redirects + 1 : 1;
-      if (context.redirects > 5) return { errors };
+
+      if (context.redirects > 5) {
+        fetched[fetchID] = { errors, ok, responseGroup, status, statusText };
+        return { headers, ok, responseGroup, status };
+      }
+
       const redirectMethod = status === 303 ? 'GET' : method;
       const location = headers.get('location');
       return this._fetch(redirectMethod, location, fetchOptions, context, options);
     }
 
-    if (!headers.get('content-type')) return { headers, status };
-    const { data, errors } = options.bodyParser(await res[options.streamReader](), context);
-    return { data, errors, headers, status };
+    // TODO: Add retry logic for server errors.
+
+    if (!headers.get('content-type')) {
+      fetched[fetchID] = { ok, responseGroup, status, statusText };
+      return { headers, ok, responseGroup, status };
+    }
+
+    const parsed = options.bodyParser(await res[options.streamReader](), context);
+    fetched[fetchID] = { ok, responseGroup, status, statusText };
+    if (parsed.errors) fetched[fetchID].errors = parsed.errors;
+    return { data: parsed.data, headers, ok, responseGroup, status };
   }
 
   /**
@@ -402,13 +421,11 @@ export default class RestClient {
     }
 
     let data = !res || res.status === 304 ? cache.data : res.data;
-    const errors = res && res.errors;
-    if (res && !errors) this._setCacheEntry(endpoint, data, res.headers);
-    if (errors && res.status === 404) this._deleteCacheEntry(endpoint);
+    if (res && (res.ok || res.status === 304)) this._setCacheEntry(endpoint, data, res.headers);
+    if (res && res.status === 404) this._deleteCacheEntry(endpoint);
     data = data ? castArray(data) : [];
     const _values = values ? castArray(values) : [];
-    this._resolveRequests(resourceKey, _values, { data, errors }, context);
-    if (errors) return errors;
+    if (_values.length) this._resolveRequests(resourceKey, _values, data, context);
     if (!context.resource) return data;
     return this._resolveResource(resourceKey, context.resource.active, data);
   }
@@ -425,6 +442,7 @@ export default class RestClient {
     if (!tracker.active) tracker.active = [];
     if (!tracker.fetching) tracker.fetching = [];
     if (!tracker.pending) tracker.pending = {};
+    if (!tracker.fetched) tracker.fetched = {};
     return tracker;
   }
 
@@ -468,31 +486,43 @@ export default class RestClient {
   async _post(endpoint, body, context, options) {
     const method = 'POST';
     const fetchOptions = { body, headers: new Headers(options.headers), method };
-    const { data, errors } = await this._fetch(method, endpoint, fetchOptions, context, options);
-    return errors || data;
+    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options);
+    return data;
+  }
+
+  /**
+   *
+   * @private
+   * @param {Array<Promise>} promises
+   * @param {string} path
+   * @param {string} fetchID
+   * @return {Object}
+   */
+  async _resolveData(promises, path, fetchID) {
+    const data = flatten(await Promise.all(promises)).filter(value => !!value);
+    const { fetched } = this._getTracker(path);
+    const metadata = fetched[fetchID];
+    return { data, metadata };
   }
 
   /**
    *
    * @private
    * @param {string} resourceKey
-   * @param {string|Array<string>} values
-   * @param {Object} res
-   * @param {Array<Object>} res.data
-   * @param {Object} res.errors
+   * @param {Array<string>} values
+   * @param {Array<any>} data
    * @param {Object} context
    * @param {string} context.fetchID
    * @param {string} context.path
    * @return {void}
    */
-  async _resolveRequests(resourceKey, values, { data, errors }, { fetchID, path }) {
-    if (!values.length) return;
+  async _resolveRequests(resourceKey, values, data, { fetchID, path }) {
     const { fetching, pending } = this._getTracker(path);
 
     values.forEach((value) => {
       const index = fetching.findIndex(obj => obj.value === value);
       if (index !== -1) fetching.splice(index, 1);
-      const match = errors || data.find(obj => obj[resourceKey] === value);
+      const match = data.find(obj => get(obj, [resourceKey], null) === value);
       if (!pending[value]) return;
 
       for (let i = pending[value].length - 1; i >= 0; i -= 1) {
@@ -509,14 +539,14 @@ export default class RestClient {
    * @private
    * @param {string} key
    * @param {Array<string>} values
-   * @param {Object|Array<Object>} data
+   * @param {Array<Object>} data
    * @return {Array<Object>}
    */
   _resolveResource(key, values, data) {
     const filtered = [];
 
     values.forEach((value) => {
-      const match = data.find(obj => obj[key] === value);
+      const match = data.find(obj => get(obj, [key], null) === value);
       if (match) filtered.push(match);
     });
 
@@ -575,7 +605,7 @@ export default class RestClient {
     const defaultOptions = {
       batchLimit: this._batchLimit,
       bodyParser: this._bodyParser,
-      headers: this._headers,
+      headers: { ...this._headers },
       streamReader: this._streamReader,
     };
 
@@ -640,7 +670,7 @@ export default class RestClient {
       promises.push(this._delete(endpoint, _context, _options));
     });
 
-    return flatten(await Promise.all(promises)).filter(value => !!value);
+    return this._resolveData(promises, path, _context.fetchID);
   }
 
   /**
@@ -685,7 +715,7 @@ export default class RestClient {
       });
     }
 
-    return flatten(await Promise.all(promises)).filter(value => !!value);
+    return this._resolveData(promises, path, _context.fetchID);
   }
 
   /**
@@ -710,7 +740,7 @@ export default class RestClient {
       promises.push(this._post(endpoint, body, _context, _options));
     });
 
-    return flatten(await Promise.all(promises)).filter(value => !!value);
+    return this._resolveData(promises, path, _context.fetchID);
   }
 
   /**

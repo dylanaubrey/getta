@@ -81,7 +81,7 @@ describe('the .get() method', () => {
     });
 
     it('should return the requested data', () => {
-      expect(res[0]).to.eql(data[resource].body);
+      expect(res.data[0]).to.eql(data[resource].body);
     });
 
     it('should cache the data against the endpoint', async () => {
@@ -114,7 +114,7 @@ describe('the .get() method', () => {
     });
 
     it('should return the requested data', () => {
-      expect(res[0]).to.eql(data[resource].body);
+      expect(res.data[0]).to.eql(data[resource].body);
     });
 
     it('should cache the data against the endpoint', async () => {
@@ -147,7 +147,7 @@ describe('the .get() method', () => {
       });
 
       it('should return the requested data', () => {
-        expect(res[0]).to.eql(data[resource].body);
+        expect(res.data[0]).to.eql(data[resource].body);
       });
 
       it('should not have fetched the data from the server', async () => {
@@ -169,12 +169,7 @@ describe('the .get() method', () => {
           return opts.headers.get('if-none-match') === etag;
         };
 
-        fetchMock.mock(
-          matcher,
-          { headers: notModifiedHeaders, status: 304 },
-          { headers: { 'if-none-match': etag } },
-        );
-
+        fetchMock.mock(matcher, { headers: notModifiedHeaders, status: 304 });
         const setup = setupGet({ headers, resource });
         getta = setup.getta;
         await getta.getProduct({ resource });
@@ -189,7 +184,7 @@ describe('the .get() method', () => {
       });
 
       it('should return the requested data from the cache', () => {
-        expect(res[0]).to.eql(data[resource].body);
+        expect(res.data[0]).to.eql(data[resource].body);
       });
     });
 
@@ -200,14 +195,14 @@ describe('the .get() method', () => {
       before(async () => {
         const etag = '33a64df551425fcc55e4d42a148795d9f25f89d4';
 
-        const modifiedHeaders = {
-          'cache-control': 'public, no-cache, max-age=10000',
+        const headers = {
+          'cache-control': 'public, no-cache, max-age=6000',
           'content-type': 'application/json',
           etag,
         };
 
-        const headers = {
-          'cache-control': 'public, no-cache, max-age=6000',
+        const modifiedHeaders = {
+          'cache-control': 'public, no-cache, max-age=10000',
           'content-type': 'application/json',
           etag,
         };
@@ -218,9 +213,7 @@ describe('the .get() method', () => {
         };
 
         fetchMock.mock(
-          matcher,
-          { body: data[resource].body, headers: modifiedHeaders, status: 200 },
-          { headers: { 'if-none-match': etag } },
+          matcher, { body: data[resource].body, headers: modifiedHeaders, status: 200 },
         );
 
         const setup = setupGet({ headers, resource });
@@ -241,7 +234,7 @@ describe('the .get() method', () => {
 
       it('should return the requested data', async () => {
         const res = await getta.getProduct({ resource });
-        expect(res[0]).to.eql(data[resource].body);
+        expect(res.data[0]).to.eql(data[resource].body);
       });
 
       it('should update the entry in the cache', async () => {
@@ -257,7 +250,58 @@ describe('the .get() method', () => {
   });
 
   describe('when the server returns a 404 for a requested resource', () => {
-    // TODO:...
+    let getta;
+    const cookie = 'status=404';
+    const errors = { message: 'Page not found...' };
+    const options = { headers: { cookie } };
+    const resource = '136-7317';
+
+    before(async () => {
+      const etag = '33a64df551425fcc55e4d42a148795d9f25f89d4';
+
+      const headers = {
+        'cache-control': 'public, no-cache, max-age=6000',
+        'content-type': 'application/json',
+        etag,
+      };
+
+      const matcher = (url, opts) => {
+        if (!opts.headers) return false;
+        return opts.headers.get('cookie') === cookie;
+      };
+
+      fetchMock.mock(
+        matcher,
+        { body: { errors }, status: 404 },
+      );
+
+      const setup = setupGet({ headers, resource });
+      getta = setup.getta;
+    });
+
+    after(async () => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      await getta.getProduct({ resource });
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+    });
+
+    it('should return no data and the error metadata', async () => {
+      const res = await getta.getProduct({ options, resource });
+      expect(res.data.length).to.eql(0);
+      expect(res.metadata.status).to.eql(404);
+    });
+
+    it('should delete the entry in the cache', async () => {
+      expect(await getta._cache.size()).to.eql(1);
+      await getta.getProduct({ options, resource });
+      expect(await getta._cache.size()).to.eql(0);
+    });
   });
 
   describe('when batched resources are requested from the server', () => {
@@ -285,7 +329,7 @@ describe('the .get() method', () => {
     });
 
     it('should return the requested data', () => {
-      expect(res).to.eql(getValues());
+      expect(res.data).to.eql(getValues());
     });
 
     it('should cache each resource set against its respective endpoint', async () => {
@@ -326,7 +370,7 @@ describe('the .get() method', () => {
 
     it('should return the requested data', async () => {
       res = await getta.getProduct({ resource, options: { batchLimit: 2 } });
-      expect(res.sort(sortValues)).to.eql(getValues());
+      expect(res.data.sort(sortValues)).to.eql(getValues());
     });
 
     it('should cache each data resource set against its respective endpoint', async () => {
@@ -367,6 +411,7 @@ describe('the .get() method', () => {
       });
 
       res = flatten(await Promise.all(promises));
+      res = res.map(obj => obj.data[0]);
     });
 
     afterEach(async () => {
@@ -406,7 +451,7 @@ describe('the .get() method', () => {
     });
 
     it('should return the requested data', async () => {
-      expect(res.sort(sortValues)).to.eql(getValues());
+      expect(res.data.sort(sortValues)).to.eql(getValues());
     });
 
     it('should cache the resource data set against its endpoint', async () => {
@@ -433,7 +478,7 @@ describe('the .post() method', () => {
 
     it('should return the created data', async () => {
       const res = await getta.postProduct({ body: { id: resource } });
-      expect(res[0]).to.eql(data[resource].body);
+      expect(res.data[0]).to.eql(data[resource].body);
     });
   });
 });
@@ -454,7 +499,7 @@ describe('the .delete() method', () => {
 
     it('should return the deleted data', async () => {
       const res = await getta.deleteProduct({ resource });
-      expect(res[0]).to.eql(data[resource].body);
+      expect(res.data[0]).to.eql(data[resource].body);
     });
   });
 
@@ -473,7 +518,7 @@ describe('the .delete() method', () => {
 
     it('should return the deleted data', async () => {
       const res = await getta.deleteProduct({ resource });
-      expect(res.sort(sortValues)).to.eql(getValues());
+      expect(res.data.sort(sortValues)).to.eql(getValues());
     });
   });
 
@@ -492,7 +537,7 @@ describe('the .delete() method', () => {
 
     it('should return the deleted data', async () => {
       const res = await getta.deleteProduct();
-      expect(res.sort(sortValues)).to.eql(getValues());
+      expect(res.data.sort(sortValues)).to.eql(getValues());
     });
   });
 });
