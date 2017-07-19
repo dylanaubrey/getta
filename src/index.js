@@ -1,7 +1,7 @@
 import Cachemap from 'cachemap';
 import { castArray, flatten, get, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
-import getResponseGroup from './helpers';
+import { getResponseGroup, sleep } from './helpers';
 import logger from './logger';
 
 require('es6-promise').polyfill();
@@ -383,7 +383,18 @@ export default class RestClient {
       return this._fetch(redirectMethod, location, fetchOptions, context, options);
     }
 
-    // TODO: Add retry logic for server errors.
+    if (responseGroup === 'serverError') {
+      context.retries = context.retries ? context.retries + 1 : 1;
+      context.retryTimer = context.retryTimer ? context.retryTimer * 2 : 100;
+
+      if (context.retries > 3) {
+        fetched[fetchID] = { ok, responseGroup, status, statusText };
+        return { headers, ok, responseGroup, status };
+      }
+
+      await sleep(context.retryTimer);
+      return this._fetch(method, endpoint, fetchOptions, context, options);
+    }
 
     if (!headers.get('content-type')) {
       fetched[fetchID] = { ok, responseGroup, status, statusText };
