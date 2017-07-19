@@ -10,6 +10,7 @@ import {
   buildQueryString,
   cachemapOptions,
   mockGet,
+  path,
   productArgs,
   setupDelete,
   setupDeleteAll,
@@ -85,7 +86,7 @@ describe('the .get() method', () => {
 
     it('should cache the data against the endpoint', async () => {
       expect(await getta._cache.size()).to.eql(1);
-      const entry = await getta._cache.get(`content/catalog/product/${resource}`);
+      const entry = await getta._cache.get(`${path}/${resource}`);
       expect(entry).to.eql(data[resource].body);
     });
   });
@@ -118,11 +119,7 @@ describe('the .get() method', () => {
 
     it('should cache the data against the endpoint', async () => {
       expect(await getta._cache.size()).to.eql(1);
-
-      const entry = await getta._cache.get(
-        `content/catalog/product/${resource}${buildQueryString(queryParams)}`,
-      );
-
+      const entry = await getta._cache.get(`${path}/${resource}${buildQueryString(queryParams)}`);
       expect(entry).to.eql(data[resource].body);
     });
   });
@@ -134,7 +131,6 @@ describe('the .get() method', () => {
 
       before(async () => {
         const setup = setupGet({ resource });
-
         getta = setup.getta;
         urls = setup.urls;
         await getta.getProduct({ resource });
@@ -175,7 +171,7 @@ describe('the .get() method', () => {
 
         fetchMock.mock(
           matcher,
-          { status: 304, headers: notModifiedHeaders },
+          { headers: notModifiedHeaders, status: 304 },
           { headers: { 'if-none-match': etag } },
         );
 
@@ -186,25 +182,77 @@ describe('the .get() method', () => {
 
       after(async () => {
         fetchMock.restore();
-        await getta._cache.clear();
       });
 
       beforeEach(async () => {
-        fetchMock.reset();
         res = await getta.getProduct({ resource });
       });
 
-      it('should return the requested data', () => {
+      it('should return the requested data from the cache', () => {
         expect(res[0]).to.eql(data[resource].body);
-      });
-
-      it('should not have fetched the data from the server', async () => {
-        // TODO:...
       });
     });
 
     describe('when the cached resource is expired and server returns new resource', () => {
-      // TODO:...
+      let getta;
+      const resource = '136-7317';
+
+      before(async () => {
+        const etag = '33a64df551425fcc55e4d42a148795d9f25f89d4';
+
+        const modifiedHeaders = {
+          'cache-control': 'public, no-cache, max-age=10000',
+          'content-type': 'application/json',
+          etag,
+        };
+
+        const headers = {
+          'cache-control': 'public, no-cache, max-age=6000',
+          'content-type': 'application/json',
+          etag,
+        };
+
+        const matcher = (url, opts) => {
+          if (!opts.headers) return false;
+          return opts.headers.get('if-none-match') === etag;
+        };
+
+        fetchMock.mock(
+          matcher,
+          { body: data[resource].body, headers: modifiedHeaders, status: 200 },
+          { headers: { 'if-none-match': etag } },
+        );
+
+        const setup = setupGet({ headers, resource });
+        getta = setup.getta;
+      });
+
+      after(async () => {
+        fetchMock.restore();
+      });
+
+      beforeEach(async () => {
+        await getta.getProduct({ resource });
+      });
+
+      afterEach(async () => {
+        await getta._cache.clear();
+      });
+
+      it('should return the requested data', async () => {
+        const res = await getta.getProduct({ resource });
+        expect(res[0]).to.eql(data[resource].body);
+      });
+
+      it('should update the entry in the cache', async () => {
+        expect(await getta._cache.size()).to.eql(1);
+        let cacheability = await getta._cache.has(`${path}/${resource}`);
+        expect(cacheability.maxAge).to.eql(6000);
+        await getta.getProduct({ resource });
+        expect(await getta._cache.size()).to.eql(1);
+        cacheability = await getta._cache.has(`${path}/${resource}`);
+        expect(cacheability.maxAge).to.eql(10000);
+      });
     });
   });
 
@@ -243,8 +291,8 @@ describe('the .get() method', () => {
     it('should cache each resource set against its respective endpoint', async () => {
       expect(await getta._cache.size()).to.eql(2);
       const promises = [];
-      promises.push(getta._cache.get(`content/catalog/product/${batchOne.join()}`));
-      promises.push(getta._cache.get(`content/catalog/product/${batchTwo.join()}`));
+      promises.push(getta._cache.get(`${path}/${batchOne.join()}`));
+      promises.push(getta._cache.get(`${path}/${batchTwo.join()}`));
       const entries = await Promise.all(promises);
       expect(flatten(entries).sort(sortValues)).to.eql(getValues());
     });
@@ -286,8 +334,8 @@ describe('the .get() method', () => {
       await getta.getProduct({ resource, options: { batchLimit: 2 } });
       expect(await getta._cache.size()).to.eql(2);
       const promises = [];
-      promises.push(getta._cache.get(`content/catalog/product/${batchOne.join()}`));
-      promises.push(getta._cache.get(`content/catalog/product/${batchTwo.join()}`));
+      promises.push(getta._cache.get(`${path}/${batchOne.join()}`));
+      promises.push(getta._cache.get(`${path}/${batchTwo.join()}`));
       const entries = await Promise.all(promises);
       expect(flatten(entries).sort(sortValues)).to.eql(getValues());
     });
@@ -323,7 +371,6 @@ describe('the .get() method', () => {
 
     afterEach(async () => {
       await getta._cache.clear();
-      fetchMock.reset();
     });
 
     it('should return the requested data', async () => {
@@ -332,7 +379,7 @@ describe('the .get() method', () => {
 
     it('should cache the data resource set against its endpoint', async () => {
       expect(await getta._cache.size()).to.eql(1);
-      const entry = await getta._cache.get(`content/catalog/product/${resource.join()}`);
+      const entry = await getta._cache.get(`${path}/${resource.join()}`);
       expect(entry.sort(sortValues)).to.eql(getValues());
     });
   });
@@ -356,7 +403,6 @@ describe('the .get() method', () => {
 
     afterEach(async () => {
       await getta._cache.clear();
-      fetchMock.reset();
     });
 
     it('should return the requested data', async () => {
@@ -365,7 +411,7 @@ describe('the .get() method', () => {
 
     it('should cache the resource data set against its endpoint', async () => {
       expect(await getta._cache.size()).to.eql(1);
-      const entry = await getta._cache.get('content/catalog/product');
+      const entry = await getta._cache.get(`${path}`);
       expect(entry.sort(sortValues)).to.eql(getValues());
     });
   });
@@ -373,7 +419,7 @@ describe('the .get() method', () => {
 
 describe('the .post() method', () => {
   describe('when one resource is created and returned from the server', () => {
-    let getta, res;
+    let getta;
     const resource = '136-7317';
 
     before(() => {
@@ -385,16 +431,8 @@ describe('the .post() method', () => {
       fetchMock.restore();
     });
 
-    beforeEach(async () => {
-      res = await getta.postProduct({ body: { id: resource } });
-    });
-
-    afterEach(async () => {
-      await getta._cache.clear();
-      fetchMock.reset();
-    });
-
     it('should return the created data', async () => {
+      const res = await getta.postProduct({ body: { id: resource } });
       expect(res[0]).to.eql(data[resource].body);
     });
   });

@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, flatten, isArray, merge } from 'lodash';
+import { castArray, flatten, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import logger from './logger';
 
@@ -393,7 +393,7 @@ export default class RestClient {
     let res;
 
     if (!cacheability || cacheability.noCache || !cacheability.check()) {
-      const headers = options.headers;
+      const headers = { ...options.headers };
       const etag = cacheability && cacheability.etag;
       if (etag) headers['If-None-Match'] = etag;
       const method = 'GET';
@@ -558,16 +558,12 @@ export default class RestClient {
     let _resource = null;
 
     if (resource) {
-      const values = isArray(resource) ? [...resource] : resource;
-
-      if (method === 'GET') {
-        _resource = { active: castArray(values), batched: [], pending: [] };
-      } else {
-        _resource = { values: castArray(values) };
-      }
+      const values = castArray(resource);
+      _resource = method === 'GET' ? { active: values, batched: [], pending: [] } : { values };
     }
 
-    return { ...{ path, resource: _resource, queryParams, fetchID: uuidV1() }, ...context };
+    const _context = { path, resource: _resource, queryParams, fetchID: uuidV1() };
+    return { ..._context, ...context };
   }
 
   /**
