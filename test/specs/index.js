@@ -294,7 +294,7 @@ describe('the .get() method', () => {
     it('should return no data and the error metadata', async () => {
       const res = await getta.getProduct({ options, resource });
       expect(res.data.length).to.eql(0);
-      expect(res.metadata.status).to.eql(404);
+      expect(res.metadata[0].status).to.eql(404);
     });
 
     it('should delete the entry in the cache', async () => {
@@ -426,6 +426,42 @@ describe('the .get() method', () => {
       expect(await getta._cache.size()).to.eql(1);
       const entry = await getta._cache.get(`${path}/${resource.join()}`);
       expect(entry.sort(sortValues)).to.eql(getValues());
+    });
+  });
+
+  describe('when the same resource is requested in quick succession', () => {
+    let getta, res, urls;
+    const resource = '136-7317';
+
+    before(() => {
+      const setup = setupGet({ resource });
+      getta = setup.getta;
+      urls = setup.urls;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      fetchMock.reset();
+      const promises = [];
+      promises.push(getta.getProduct({ resource }));
+      promises.push(getta.getProduct({ resource }));
+      res = flatten(await Promise.all(promises));
+      res = res.map(obj => obj.data[0]);
+    });
+
+    afterEach(async () => {
+      await getta._cache.clear();
+    });
+
+    it('should return the requested data', async () => {
+      expect(res).to.eql([data[resource].body, data[resource].body]);
+    });
+
+    it('should not have made two requests to the server', async () => {
+      expect(fetchMock.calls(urls[0]).length).to.eql(1);
     });
   });
 

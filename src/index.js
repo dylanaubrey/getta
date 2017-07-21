@@ -144,7 +144,7 @@ export default class RestClient {
         for (let i = tracker.active.length - 1; i >= 0; i -= 1) {
           resource.batched.push(tracker.active[i].value);
           tracker.fetching.push({ fetchID, value: tracker.active[i].value });
-          this._updatePendingRequests({ fetchID, resource: tracker.active[i].value }, path);
+          this._updatePendingRequests(path, tracker.active[i].value, fetchID);
           tracker.active.splice(i, 1);
           if (resource.batched.length === batchLimit) break;
         }
@@ -261,7 +261,7 @@ export default class RestClient {
         if (!tracker.pending[resource.active[i]]) tracker.pending[resource.active[i]] = [];
 
         promises.push(this._setPendingRequest(
-          tracker.pending[resource.active[i]], { fetchID: match.fetchID },
+          tracker.pending[resource.active[i]], match.fetchID, fetchID,
         ));
 
         resource.pending = [...resource.pending, ...resource.active.splice(i, 1)];
@@ -299,10 +299,10 @@ export default class RestClient {
     if (!tracker.pending[resource]) tracker.pending[resource] = [];
 
     promises.push(this._setPendingRequest(
-      tracker.pending[resource], { fetchID: fetchMatch.fetchID },
+      tracker.pending[resource], fetchMatch.fetchID, activeFetchID,
     ));
 
-    this._updatePendingRequests({ fetchID: fetchMatch.fetchID, resource }, path);
+    this._updatePendingRequests(path, resource, fetchMatch.fetchID);
     return { pending: true, promises };
   }
 
@@ -310,14 +310,19 @@ export default class RestClient {
    *
    * @private
    * @param {string} endpoint
+   * @param {Array<string>} values
    * @param {Object} context
    * @param {Object} options
    * @return {Promise}
    */
-  async _delete(endpoint, context, options) {
+  async _delete(endpoint, values, context, options) {
     const method = 'DELETE';
     const fetchOptions = { headers: new Headers(options.headers), method };
-    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options);
+
+    const { data } = await this._fetch(
+      method, endpoint, fetchOptions, context, options, { resource: values },
+    );
+
     return data;
   }
 
@@ -345,9 +350,10 @@ export default class RestClient {
    * @param {Object} fetchOptions
    * @param {Object} context
    * @param {Object} options
+   * @param {Object} [metadata]
    * @return {Promise}
    */
-  async _fetch(method, endpoint, fetchOptions, context, options) {
+  async _fetch(method, endpoint, fetchOptions, context, options, metadata = {}) {
     let res, errors;
 
     try {
@@ -358,42 +364,47 @@ export default class RestClient {
       logger.error(errors);
     }
 
-    const { fetched } = this._getTracker(context.path);
+    const { requests } = this._getTracker(context.path);
     const fetchID = context.fetchID;
+    if (!requests[fetchID]) requests[fetchID] = [];
 
     if (errors) {
-      fetched[fetchID] = { errors };
-      return {};
+      requests[fetchID].push({ endpoint, errors });
+      return { endpoint, errors };
     }
 
     const { headers, ok, status, statusText } = res;
     const responseGroup = getResponseGroup(status);
-    const metadata = { ok, responseGroup, status, statusText };
+    let _metadata = { ...metadata, endpoint, method, ok, responseGroup, status, statusText };
+    if (!_metadata.resource) _metadata.resource = [];
 
     if (responseGroup === 'redirection' && headers.get('location')) {
-      return this._handleRedirect(method, fetchOptions, context, options, headers, metadata);
+      return this._handleRedirect(method, fetchOptions, context, options, headers, _metadata);
     }
 
     if (responseGroup === 'serverError') {
-      return this._handleRetry(method, endpoint, fetchOptions, context, options, headers, metadata);
+      return this._handleRetry(
+        method, endpoint, fetchOptions, context, options, headers, _metadata,
+      );
     }
 
     if (!headers.get('content-type')) {
-      fetched[fetchID] = metadata;
-      return { headers, ...metadata };
+      requests[fetchID].push(_metadata);
+      return { headers, ..._metadata };
     }
 
     const parsed = options.bodyParser(await res[options.streamReader](), context);
-    fetched[fetchID] = { ...metadata };
-    if (parsed.errors) fetched[fetchID].errors = parsed.errors;
-    return { data: parsed.data, headers, ...metadata };
+    _metadata = { ..._metadata };
+    if (parsed.errors) _metadata.errors = parsed.errors;
+    requests[fetchID].push(_metadata);
+    return { data: parsed.data, headers, ..._metadata };
   }
 
   /**
    *
    * @private
    * @param {string} endpoint
-   * @param {string|Array<string>} values
+   * @param {Array<string>} values
    * @param {Object} context
    * @param {Object} options
    * @param {string} resourceKey
@@ -410,17 +421,24 @@ export default class RestClient {
       if (etag) headers['If-None-Match'] = etag;
       const method = 'GET';
       const fetchOptions = { headers: new Headers(headers), method };
-      res = await this._fetch(method, endpoint, fetchOptions, context, options);
+
+      res = await this._fetch(
+        method, endpoint, fetchOptions, context, options, { resource: values },
+      );
+    } else {
+      const { requests } = this._getTracker(context.path);
+      const fetchID = context.fetchID;
+      if (!requests[fetchID]) requests[fetchID] = [];
+      requests[fetchID].push({ endpoint, fromCache: true, resource: values });
     }
 
-    let data = !res || res.status === 304 ? cache.data : res.data;
+    const data = !res || res.status === 304 ? cache.data : res.data;
     if (res && (res.ok || res.status === 304)) this._setCacheEntry(endpoint, data, res.headers);
     if (res && res.status === 404) this._deleteCacheEntry(endpoint);
-    data = data ? castArray(data) : [];
-    const _values = values ? castArray(values) : [];
-    if (_values.length) this._resolveRequests(resourceKey, _values, data, context);
-    if (!context.resource) return data;
-    return this._resolveResource(resourceKey, context.resource.active, data);
+    const castData = data ? castArray(data) : [];
+    if (values.length) this._resolveRequests(resourceKey, values, castData, context, res);
+    if (!context.resource) return castData;
+    return this._resolveResource(resourceKey, context.resource.active, castData);
   }
 
   /**
@@ -435,7 +453,7 @@ export default class RestClient {
     if (!tracker.active) tracker.active = [];
     if (!tracker.fetching) tracker.fetching = [];
     if (!tracker.pending) tracker.pending = {};
-    if (!tracker.fetched) tracker.fetched = {};
+    if (!tracker.requests) tracker.requests = {};
     return tracker;
   }
 
@@ -452,17 +470,17 @@ export default class RestClient {
    */
   async _handleRedirect(method, fetchOptions, context, options, headers, metadata) {
     const errors = 'The request exceeded the maximum number of redirects.';
-    context.redirects = context.redirects ? context.redirects + 1 : 1;
-    const { fetched } = this._getTracker(context.path);
+    metadata.redirects = metadata.redirects ? metadata.redirects + 1 : 1;
+    const { requests } = this._getTracker(context.path);
 
-    if (context.redirects > 5) {
-      fetched[context.fetchID] = { errors, ...metadata };
+    if (metadata.redirects > 5) {
+      requests[context.fetchID].push({ errors, ...metadata });
       return { headers, ...metadata };
     }
 
     const redirectMethod = status === 303 ? 'GET' : method;
     const location = headers.get('location');
-    return this._fetch(redirectMethod, location, fetchOptions, context, options);
+    return this._fetch(redirectMethod, location, fetchOptions, context, options, metadata);
   }
 
   /**
@@ -478,17 +496,17 @@ export default class RestClient {
    * @return {Promise}
    */
   async _handleRetry(method, endpoint, fetchOptions, context, options, headers, metadata) {
-    context.retries = context.retries ? context.retries + 1 : 1;
-    context.retryTimer = context.retryTimer ? context.retryTimer * 2 : 100;
-    const { fetched } = this._getTracker(context.path);
+    metadata.retries = metadata.retries ? metadata.retries + 1 : 1;
+    metadata.retryTimer = metadata.retryTimer ? metadata.retryTimer * 2 : 100;
+    const { requests } = this._getTracker(context.path);
 
-    if (context.retries > 3) {
-      fetched[context.fetchID] = metadata;
+    if (metadata.retries > 3) {
+      requests[context.fetchID].push(metadata);
       return { headers, ...metadata };
     }
 
-    await sleep(context.retryTimer);
-    return this._fetch(method, endpoint, fetchOptions, context, options);
+    await sleep(metadata.retryTimer);
+    return this._fetch(method, endpoint, fetchOptions, context, options, metadata);
   }
 
   /**
@@ -545,8 +563,8 @@ export default class RestClient {
    */
   async _resolveData(promises, path, fetchID) {
     const data = flatten(await Promise.all(promises)).filter(value => !!value);
-    const { fetched } = this._getTracker(path);
-    const metadata = fetched[fetchID];
+    const { requests } = this._getTracker(path);
+    const metadata = requests[fetchID];
     return { data, metadata };
   }
 
@@ -559,10 +577,11 @@ export default class RestClient {
    * @param {Object} context
    * @param {string} context.fetchID
    * @param {string} context.path
+   * @param {Object} res
    * @return {void}
    */
-  async _resolveRequests(resourceKey, values, data, { fetchID, path }) {
-    const { fetching, pending } = this._getTracker(path);
+  async _resolveRequests(resourceKey, values, data, { fetchID, path }, res) {
+    const { fetching, pending, requests } = this._getTracker(path);
 
     values.forEach((value) => {
       const index = fetching.findIndex(obj => obj.value === value);
@@ -571,7 +590,12 @@ export default class RestClient {
       if (!pending[value]) return;
 
       for (let i = pending[value].length - 1; i >= 0; i -= 1) {
-        if (pending[value][i].fetchID === fetchID) {
+        if (pending[value][i].batchID === fetchID) {
+          const _fetchID = pending[value][i].fetchID;
+          if (!requests[_fetchID]) requests[_fetchID] = [];
+          const { data: resData, headers, ...otherProps } = res;
+          const metadata = { batched: true, ...otherProps };
+          requests[_fetchID].push(metadata);
           pending[value][i].resolve(match);
           pending[value].splice(i, 1);
         }
@@ -660,32 +684,31 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {Array<Function>} pending
-   * @param {Object} context
-   * @param {string} context.fetchID
+   * @param {Array<Object>} pending
+   * @param {string} batchID
+   * @param {string} fetchID
    * @return {Promise}
    */
-  _setPendingRequest(pending, { fetchID }) {
+  _setPendingRequest(pending, batchID, fetchID) {
     return new Promise((resolve) => {
-      pending.push({ fetchID, resolve });
+      pending.push({ batchID, fetchID, resolve });
     });
   }
 
   /**
    *
    * @private
-   * @param {Object} context
-   * @param {string} context.fetchID
-   * @param {string} context.resource
    * @param {string} path
+   * @param {string} resource
+   * @param {string} fetchID
    * @return {void}
    */
-  _updatePendingRequests({ fetchID, resource }, path) {
+  _updatePendingRequests(path, resource, fetchID) {
     const { pending } = this._getTracker(path);
 
     if (pending[resource]) {
       pending[resource].forEach((obj) => {
-        obj.fetchID = fetchID;
+        obj.batchID = fetchID;
       });
     }
   }
@@ -711,8 +734,9 @@ export default class RestClient {
 
     const promises = [];
 
-    endpoints.forEach(({ endpoint }) => {
-      promises.push(this._delete(endpoint, _context, _options));
+    endpoints.forEach(({ endpoint, values }) => {
+      const castValues = values ? castArray(values) : [];
+      promises.push(this._delete(endpoint, castValues, _context, _options));
     });
 
     return this._resolveData(promises, path, _context.fetchID);
@@ -756,7 +780,8 @@ export default class RestClient {
       }, _options);
 
       endpoints.forEach(({ endpoint, values }) => {
-        promises.push(this._get(endpoint, values, _context, _options, resourceKey));
+        const castValues = values ? castArray(values) : [];
+        promises.push(this._get(endpoint, castValues, _context, _options, resourceKey));
       });
     }
 
