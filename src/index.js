@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, flatten, get, merge } from 'lodash';
+import { castArray, flatten, get, isArray, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import { getResponseGroup, sleep } from './helpers';
 import logger from './logger';
@@ -369,6 +369,7 @@ export default class RestClient {
     if (!requests[fetchID]) requests[fetchID] = [];
 
     if (errors) {
+      errors = isArray(errors) ? errors : [errors];
       requests[fetchID].push({ endpoint, errors });
       return { endpoint, errors };
     }
@@ -376,13 +377,18 @@ export default class RestClient {
     const { headers, ok, status, statusText } = res;
     const responseGroup = getResponseGroup(status);
     let _metadata = { ...metadata, endpoint, method, ok, responseGroup, status, statusText };
+    if (!_metadata.errors) _metadata.errors = [];
     if (!_metadata.resource) _metadata.resource = [];
 
     if (responseGroup === 'redirection' && headers.get('location')) {
-      return this._handleRedirect(method, fetchOptions, context, options, headers, _metadata);
+      if (!_metadata.redirects || _metadata.redirects < 5) {
+        return this._handleRedirect(method, fetchOptions, context, options, headers, _metadata);
+      }
+
+      _metadata.errors.push('The request exceeded the maximum number of redirects.');
     }
 
-    if (responseGroup === 'serverError') {
+    if (responseGroup === 'serverError' && (!_metadata.retries || _metadata.retries < 3)) {
       return this._handleRetry(
         method, endpoint, fetchOptions, context, options, headers, _metadata,
       );
@@ -395,7 +401,12 @@ export default class RestClient {
 
     const parsed = options.bodyParser(await res[options.streamReader](), context);
     _metadata = { ..._metadata };
-    if (parsed.errors) _metadata.errors = parsed.errors;
+
+    if (parsed.errors) {
+      errors = isArray(parsed.errors) ? parsed.errors : [parsed.errors];
+      _metadata.errors = [..._metadata.errors, ...errors];
+    }
+
     requests[fetchID].push(_metadata);
     return { data: parsed.data, headers, ..._metadata };
   }
@@ -469,16 +480,8 @@ export default class RestClient {
    * @return {Promise}
    */
   async _handleRedirect(method, fetchOptions, context, options, headers, metadata) {
-    const errors = 'The request exceeded the maximum number of redirects.';
     metadata.redirects = metadata.redirects ? metadata.redirects + 1 : 1;
-    const { requests } = this._getTracker(context.path);
-
-    if (metadata.redirects > 5) {
-      requests[context.fetchID].push({ errors, ...metadata });
-      return { headers, ...metadata };
-    }
-
-    const redirectMethod = status === 303 ? 'GET' : method;
+    const redirectMethod = metadata.status === 303 ? 'GET' : method;
     const location = headers.get('location');
     return this._fetch(redirectMethod, location, fetchOptions, context, options, metadata);
   }
@@ -498,13 +501,6 @@ export default class RestClient {
   async _handleRetry(method, endpoint, fetchOptions, context, options, headers, metadata) {
     metadata.retries = metadata.retries ? metadata.retries + 1 : 1;
     metadata.retryTimer = metadata.retryTimer ? metadata.retryTimer * 2 : 100;
-    const { requests } = this._getTracker(context.path);
-
-    if (metadata.retries > 3) {
-      requests[context.fetchID].push(metadata);
-      return { headers, ...metadata };
-    }
-
     await sleep(metadata.retryTimer);
     return this._fetch(method, endpoint, fetchOptions, context, options, metadata);
   }
@@ -667,6 +663,7 @@ export default class RestClient {
 
   /**
    *
+   * @private
    * @param {Object} options
    * @return {Object}
    */

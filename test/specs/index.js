@@ -136,9 +136,8 @@ describe('the .get() method', () => {
         await getta.getProduct({ resource });
       });
 
-      after(async () => {
+      after(() => {
         fetchMock.restore();
-        await getta._cache.clear();
       });
 
       beforeEach(async () => {
@@ -175,7 +174,7 @@ describe('the .get() method', () => {
         await getta.getProduct({ resource });
       });
 
-      after(async () => {
+      after(() => {
         fetchMock.restore();
       });
 
@@ -220,7 +219,7 @@ describe('the .get() method', () => {
         getta = setup.getta;
       });
 
-      after(async () => {
+      after(() => {
         fetchMock.restore();
       });
 
@@ -279,7 +278,7 @@ describe('the .get() method', () => {
       getta = setup.getta;
     });
 
-    after(async () => {
+    after(() => {
       fetchMock.restore();
     });
 
@@ -301,6 +300,87 @@ describe('the .get() method', () => {
       expect(await getta._cache.size()).to.eql(1);
       await getta.getProduct({ options, resource });
       expect(await getta._cache.size()).to.eql(0);
+    });
+  });
+
+  describe('when the server redirects the request more than five times', () => {
+    let getta, res;
+    const cookie = 'status=redirect';
+    const message = 'The resource has been permanently moved.';
+    const resource = '136-7317';
+    const headers = { 'content-type': 'application/json', location: `${baseURL}${path}/${resource}` };
+    const options = { headers: { cookie } };
+
+    before(() => {
+      const matcher = (url, opts) => {
+        if (!opts.headers) return false;
+        return opts.headers.get('cookie') === cookie;
+      };
+
+      fetchMock.mock(
+        matcher,
+        { body: { message }, headers, status: 301 },
+      );
+
+      const setup = setupGet({ resource });
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.getProduct({ options, resource });
+    });
+
+    it('should return an empty data array', () => {
+      expect(res.data.length).to.eql(0);
+    });
+
+    it('should return metadata describing the error and the number of redirects', () => {
+      expect(res.metadata[0].redirects).to.eql(5);
+      expect(res.metadata[0].errors[0]).to.eql('The request exceeded the maximum number of redirects.');
+    });
+  });
+
+  describe('when the server retries the request more than three times', () => {
+    let getta, res;
+    const cookie = 'status=retry';
+    const message = 'Oops, something went wrong...';
+    const resource = '136-7317';
+    const headers = { 'content-type': 'application/json', location: `${baseURL}${path}/${resource}` };
+    const options = { headers: { cookie } };
+
+    before(() => {
+      const matcher = (url, opts) => {
+        if (!opts.headers) return false;
+        return opts.headers.get('cookie') === cookie;
+      };
+
+      fetchMock.mock(
+        matcher,
+        { body: { message }, headers, status: 500 },
+      );
+
+      const setup = setupGet({ resource });
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    beforeEach(async () => {
+      res = await getta.getProduct({ options, resource });
+    });
+
+    it('should return an empty data array.', () => {
+      expect(res.data.length).to.eql(0);
+    });
+
+    it('should return metadata with the number of retries', () => {
+      expect(res.metadata[0].retries).to.eql(3);
     });
   });
 
@@ -529,7 +609,7 @@ describe('the .delete() method', () => {
       getta = setup.getta;
     });
 
-    after(async () => {
+    after(() => {
       fetchMock.restore();
     });
 
