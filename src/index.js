@@ -1,5 +1,5 @@
 import Cachemap from 'cachemap';
-import { castArray, flatten, get, isArray, merge } from 'lodash';
+import { castArray, flatten, get, merge } from 'lodash';
 import uuidV1 from 'uuid/v1';
 import { getResponseGroup, sleep } from './helpers';
 import logger from './logger';
@@ -318,11 +318,8 @@ export default class RestClient {
   async _delete(endpoint, values, context, options) {
     const method = 'DELETE';
     const fetchOptions = { headers: new Headers(options.headers), method };
-
-    const { data } = await this._fetch(
-      method, endpoint, fetchOptions, context, options, { resource: values },
-    );
-
+    const metadata = { errors: [], resource: values };
+    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
     return data;
   }
 
@@ -350,10 +347,10 @@ export default class RestClient {
    * @param {Object} fetchOptions
    * @param {Object} context
    * @param {Object} options
-   * @param {Object} [metadata]
+   * @param {Object} metadata
    * @return {Promise}
    */
-  async _fetch(method, endpoint, fetchOptions, context, options, metadata = {}) {
+  async _fetch(method, endpoint, fetchOptions, context, options, metadata) {
     let res, errors;
 
     try {
@@ -369,26 +366,20 @@ export default class RestClient {
     if (!requests[fetchID]) requests[fetchID] = [];
 
     if (errors) {
-      errors = isArray(errors) ? errors : [errors];
+      errors = castArray(errors);
       requests[fetchID].push({ endpoint, errors });
       return { endpoint, errors };
     }
 
     const { headers, ok, status, statusText } = res;
     const responseGroup = getResponseGroup(status);
-    let _metadata = { ...metadata, endpoint, method, ok, responseGroup, status, statusText };
-    if (!_metadata.errors) _metadata.errors = [];
-    if (!_metadata.resource) _metadata.resource = [];
+    const _metadata = { ...metadata, endpoint, method, ok, responseGroup, status, statusText };
 
     if (responseGroup === 'redirection' && headers.get('location')) {
-      if (!_metadata.redirects || _metadata.redirects < 5) {
-        return this._handleRedirect(method, fetchOptions, context, options, headers, _metadata);
-      }
-
-      _metadata.errors.push('The request exceeded the maximum number of redirects.');
+      return this._handleRedirect(method, fetchOptions, context, options, headers, _metadata);
     }
 
-    if (responseGroup === 'serverError' && (!_metadata.retries || _metadata.retries < 3)) {
+    if (responseGroup === 'serverError') {
       return this._handleRetry(
         method, endpoint, fetchOptions, context, options, headers, _metadata,
       );
@@ -396,19 +387,18 @@ export default class RestClient {
 
     if (!headers.get('content-type')) {
       requests[fetchID].push(_metadata);
-      return { headers, ..._metadata };
+      return { headers, metadata: _metadata };
     }
 
     const parsed = options.bodyParser(await res[options.streamReader](), context);
-    _metadata = { ..._metadata };
 
     if (parsed.errors) {
-      errors = isArray(parsed.errors) ? parsed.errors : [parsed.errors];
+      errors = castArray(parsed.errors);
       _metadata.errors = [..._metadata.errors, ...errors];
     }
 
     requests[fetchID].push(_metadata);
-    return { data: parsed.data, headers, ..._metadata };
+    return { data: parsed.data, headers, metadata: _metadata };
   }
 
   /**
@@ -432,10 +422,8 @@ export default class RestClient {
       if (etag) headers['If-None-Match'] = etag;
       const method = 'GET';
       const fetchOptions = { headers: new Headers(headers), method };
-
-      res = await this._fetch(
-        method, endpoint, fetchOptions, context, options, { resource: values },
-      );
+      const metadata = { errors: [], resource: values };
+      res = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
     } else {
       const { requests } = this._getTracker(context.path);
       const fetchID = context.fetchID;
@@ -443,11 +431,12 @@ export default class RestClient {
       requests[fetchID].push({ endpoint, fromCache: true, resource: values });
     }
 
-    const data = !res || res.status === 304 ? cache.data : res.data;
-    if (res && (res.ok || res.status === 304)) this._setCacheEntry(endpoint, data, res.headers);
-    if (res && res.status === 404) this._deleteCacheEntry(endpoint);
+    const metadata = res ? res.metadata : {};
+    const data = !res || metadata.status === 304 ? cache.data : res.data;
+    if (metadata.ok || metadata.status === 304) this._setCacheEntry(endpoint, data, res.headers);
+    if (metadata.status === 404) this._deleteCacheEntry(endpoint);
     const castData = data ? castArray(data) : [];
-    if (values.length) this._resolveRequests(resourceKey, values, castData, context, res);
+    if (values.length) this._resolveRequests(resourceKey, values, castData, context, metadata);
     if (!context.resource) return castData;
     return this._resolveResource(resourceKey, context.resource.active, castData);
   }
@@ -480,7 +469,16 @@ export default class RestClient {
    * @return {Promise}
    */
   async _handleRedirect(method, fetchOptions, context, options, headers, metadata) {
-    metadata.redirects = metadata.redirects ? metadata.redirects + 1 : 1;
+    if (!metadata.redirects) metadata.redirects = 1;
+    const { requests } = this._getTracker(context.path);
+
+    if (metadata.redirects === 5) {
+      metadata.errors.push('The request exceeded the maximum number of redirects.');
+      requests[context.fetchID].push(metadata);
+      return { headers, metadata };
+    }
+
+    metadata.redirects += 1;
     const redirectMethod = metadata.status === 303 ? 'GET' : method;
     const location = headers.get('location');
     return this._fetch(redirectMethod, location, fetchOptions, context, options, metadata);
@@ -499,8 +497,20 @@ export default class RestClient {
    * @return {Promise}
    */
   async _handleRetry(method, endpoint, fetchOptions, context, options, headers, metadata) {
-    metadata.retries = metadata.retries ? metadata.retries + 1 : 1;
-    metadata.retryTimer = metadata.retryTimer ? metadata.retryTimer * 2 : 100;
+    if (!metadata.retries) {
+      metadata.retries = 1;
+      metadata.retryTimer = 100;
+    }
+
+    const { requests } = this._getTracker(context.path);
+
+    if (metadata.retries === 3) {
+      requests[context.fetchID].push(metadata);
+      return { headers, metadata };
+    }
+
+    metadata.retries += 1;
+    metadata.retryTimer *= 2;
     await sleep(metadata.retryTimer);
     return this._fetch(method, endpoint, fetchOptions, context, options, metadata);
   }
@@ -545,7 +555,8 @@ export default class RestClient {
   async _post(endpoint, body, context, options) {
     const method = 'POST';
     const fetchOptions = { body, headers: new Headers(options.headers), method };
-    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options);
+    const metadata = { errors: [], resource: [] };
+    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
     return data;
   }
 
@@ -573,10 +584,10 @@ export default class RestClient {
    * @param {Object} context
    * @param {string} context.fetchID
    * @param {string} context.path
-   * @param {Object} res
+   * @param {Object} metadata
    * @return {void}
    */
-  async _resolveRequests(resourceKey, values, data, { fetchID, path }, res) {
+  async _resolveRequests(resourceKey, values, data, { fetchID, path }, metadata) {
     const { fetching, pending, requests } = this._getTracker(path);
 
     values.forEach((value) => {
@@ -589,9 +600,7 @@ export default class RestClient {
         if (pending[value][i].batchID === fetchID) {
           const _fetchID = pending[value][i].fetchID;
           if (!requests[_fetchID]) requests[_fetchID] = [];
-          const { data: resData, headers, ...otherProps } = res;
-          const metadata = { batched: true, ...otherProps };
-          requests[_fetchID].push(metadata);
+          requests[_fetchID].push({ batched: true, ...metadata });
           pending[value][i].resolve(match);
           pending[value].splice(i, 1);
         }
