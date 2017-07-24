@@ -131,6 +131,17 @@ export const mockDelete = function mockDelete({ batch, headers, resource }) {
 /**
  *
  * @param {Object} config
+ * @param {Object} config.headers
+ * @param {Array<string>} config.resource
+ * @return {Object}
+ */
+export const mockDeleteAll = function mockDeleteAll({ headers, resource }) {
+  return mockAll({ headers, method: 'delete', resource });
+};
+
+/**
+ *
+ * @param {Object} config
  * @param {boolean} config.batch
  * @param {Object} config.headers
  * @param {Object} config.queryParams
@@ -139,17 +150,6 @@ export const mockDelete = function mockDelete({ batch, headers, resource }) {
  */
 export const mockGet = function mockGet({ batch, headers, queryParams, resource }) {
   return mock({ batch, headers, method: 'get', queryParams, resource });
-};
-
-/**
- *
- * @param {Object} config
- * @param {Object} config.headers
- * @param {Array<string>} config.resource
- * @return {Object}
- */
-export const mockDeleteAll = function mockDeleteAll({ headers, resource }) {
-  return mockAll({ headers, method: 'delete', resource });
 };
 
 /**
@@ -195,6 +195,30 @@ export const mockPost = function mockPost({ headers, resource }) {
 export const productArgs = function productArgs(resource) {
   return { options: { batch: true }, path, resource };
 };
+
+/**
+ *
+ * @param {Object} config
+ * @param {boolean} config.batch
+ * @param {Object} config.headers
+ * @param {Array<string>} config.resource
+ * @return {Object}
+ */
+export const mockPut = function mockPut({ batch, headers, resource }) {
+  return mock({ batch, headers, method: 'put', resource });
+};
+
+/**
+ *
+ * @param {Object} config
+ * @param {Object} config.headers
+ * @param {Array<string>} config.resource
+ * @return {Object}
+ */
+export const mockPutAll = function mockPutAll({ headers, resource }) {
+  return mockAll({ headers, method: 'put', resource });
+};
+
 
 /**
  *
@@ -273,6 +297,37 @@ export const setupPost = function setupPost({ headers, newInstance = true, resou
   const url = mockPost({ headers, resource });
   const getta = new Getta({ baseURL, cachemapOptions, newInstance });
   getta.shortcut('post', 'postProduct', { path });
+  return { getta, url };
+};
+
+/**
+ *
+ * @param {Object} config
+ * @param {boolean} config.batch
+ * @param {Object} config.headers
+ * @param {boolean} config.newInstance
+ * @param {Array<string>} config.resource
+ * @return {Object}
+ */
+export const setupPut = function setupPut({ batch, headers, newInstance = true, resource }) {
+  const urls = mockPut({ batch, headers, resource });
+  const getta = new Getta({ baseURL, cachemapOptions, newInstance });
+  getta.shortcut('put', 'putProduct', { options: { batch }, path });
+  return { getta, urls };
+};
+
+/**
+ *
+ * @param {Object} config
+ * @param {Object} config.headers
+ * @param {boolean} config.newInstance
+ * @param {Array<string>} config.resource
+ * @return {Object}
+ */
+export const setupPutAll = function setupPutAll({ headers, newInstance = true, resource }) {
+  const url = mockPutAll({ headers, resource });
+  const getta = new Getta({ baseURL, cachemapOptions, newInstance });
+  getta.shortcut('put', 'putProduct', { path });
   return { getta, url };
 };
 

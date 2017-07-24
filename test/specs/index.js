@@ -17,6 +17,8 @@ import {
   setupGet,
   setupGetAll,
   setupPost,
+  setupPut,
+  setupPutAll,
   sortValues,
 } from '../helpers';
 
@@ -653,6 +655,65 @@ describe('the .delete() method', () => {
 
     it('should return the deleted data', async () => {
       const res = await getta.deleteProduct();
+      expect(res.data.sort(sortValues)).to.eql(getValues());
+    });
+  });
+});
+
+describe('the .put() method', () => {
+  describe('when one resource is requested to be updated on the server', () => {
+    let getta;
+    const resource = '136-7317';
+
+    before(() => {
+      const setup = setupPut({ resource });
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    it('should return the updated data', async () => {
+      const res = await getta.putProduct({ resource });
+      expect(res.data[0]).to.eql(data[resource].body);
+    });
+  });
+
+  describe('when batched resources are requested to be updated on the server', () => {
+    let getta;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupPut({ batch: true, resource });
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    it('should return the updated data', async () => {
+      const res = await getta.putProduct({ resource });
+      expect(res.data.sort(sortValues)).to.eql(getValues());
+    });
+  });
+
+  describe('when all resources are requested to be updated on the server', () => {
+    let getta;
+    const resource = ['136-7317', '180-1387', '183-3905', '202-3315'];
+
+    before(() => {
+      const setup = setupPutAll({ resource });
+      getta = setup.getta;
+    });
+
+    after(() => {
+      fetchMock.restore();
+    });
+
+    it('should return the updated data', async () => {
+      const res = await getta.putProduct();
       expect(res.data.sort(sortValues)).to.eql(getValues());
     });
   });

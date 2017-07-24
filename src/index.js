@@ -314,10 +314,8 @@ export default class RestClient {
    * @return {Promise}
    */
   async _delete(endpoint, values, context, options) {
-    const method = 'DELETE';
-    const fetchOptions = { headers: new Headers(options.headers), method };
-    const metadata = { errors: [], resource: values };
-    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
+    const { fetchOptions, metadata } = this._setupFetch(options.headers, context.method, values);
+    const { data } = await this._fetch(endpoint, fetchOptions, context, options, metadata);
     return data;
   }
 
@@ -340,7 +338,6 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {string} method
    * @param {string} endpoint
    * @param {Object} fetchOptions
    * @param {Object} context
@@ -348,11 +345,11 @@ export default class RestClient {
    * @param {Object} metadata
    * @return {Promise}
    */
-  async _fetch(method, endpoint, fetchOptions, context, options, metadata) {
+  async _fetch(endpoint, fetchOptions, context, options, metadata) {
     let res, errors;
 
     try {
-      logger.info(`${method}: ${this._baseURL}${endpoint}`);
+      logger.info(`${fetchOptions.method}: ${this._baseURL}${endpoint}`);
       res = await fetch(`${this._baseURL}${endpoint}`, fetchOptions);
     } catch (err) {
       errors = err;
@@ -366,16 +363,14 @@ export default class RestClient {
 
     const { ok, status, statusText } = res;
     const responseGroup = getResponseGroup(status);
-    const _metadata = { ...metadata, endpoint, method, ok, responseGroup, status, statusText };
+    const _metadata = { ...metadata, endpoint, ok, responseGroup, status, statusText };
 
     if (responseGroup === 'redirection' && res.headers.get('location')) {
-      return this._handleRedirect(method, fetchOptions, context, options, res, _metadata);
+      return this._handleRedirect(fetchOptions, context, options, res, _metadata);
     }
 
     if (responseGroup === 'serverError') {
-      return this._handleRetry(
-        method, endpoint, fetchOptions, context, options, res, _metadata,
-      );
+      return this._handleRetry(endpoint, fetchOptions, context, options, res, _metadata);
     }
 
     return this._resolveFetch(context, options, res, _metadata);
@@ -400,10 +395,8 @@ export default class RestClient {
       const headers = { ...options.headers };
       const etag = cacheability && cacheability.etag;
       if (etag) headers['If-None-Match'] = etag;
-      const method = 'GET';
-      const fetchOptions = { headers: new Headers(headers), method };
-      const metadata = { errors: [], resource: values };
-      res = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
+      const { fetchOptions, metadata } = this._setupFetch(headers, context.method, values);
+      res = await this._fetch(endpoint, fetchOptions, context, options, metadata);
     } else {
       fromCache = true;
       const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
@@ -448,7 +441,6 @@ export default class RestClient {
   /**
    *
    * @private
-   * @param {string} method
    * @param {Object} fetchOptions
    * @param {Object} context
    * @param {Object} options
@@ -456,7 +448,7 @@ export default class RestClient {
    * @param {Object} metadata
    * @return {Promise}
    */
-  async _handleRedirect(method, fetchOptions, context, options, res, metadata) {
+  async _handleRedirect(fetchOptions, context, options, res, metadata) {
     if (!metadata.redirects) metadata.redirects = 1;
 
     if (metadata.redirects === 5) {
@@ -465,15 +457,16 @@ export default class RestClient {
     }
 
     metadata.redirects += 1;
-    const redirectMethod = metadata.status === 303 ? 'GET' : method;
+    const redirectMethod = metadata.status === 303 ? 'GET' : fetchOptions.method;
+    fetchOptions.method = redirectMethod;
+    metadata.method = redirectMethod;
     const location = res.headers.get('location');
-    return this._fetch(redirectMethod, location, fetchOptions, context, options, metadata);
+    return this._fetch(location, fetchOptions, context, options, metadata);
   }
 
   /**
    *
    * @private
-   * @param {string} method
    * @param {string} endpoint
    * @param {Object} fetchOptions
    * @param {Object} context
@@ -482,7 +475,7 @@ export default class RestClient {
    * @param {Object} metadata
    * @return {Promise}
    */
-  async _handleRetry(method, endpoint, fetchOptions, context, options, res, metadata) {
+  async _handleRetry(endpoint, fetchOptions, context, options, res, metadata) {
     if (!metadata.retries) {
       metadata.retries = 1;
       metadata.retryTimer = 100;
@@ -492,7 +485,7 @@ export default class RestClient {
     metadata.retries += 1;
     metadata.retryTimer *= 2;
     await sleep(metadata.retryTimer);
-    return this._fetch(method, endpoint, fetchOptions, context, options, metadata);
+    return this._fetch(endpoint, fetchOptions, context, options, metadata);
   }
 
   /**
@@ -533,10 +526,23 @@ export default class RestClient {
    * @return {Promise}
    */
   async _post(endpoint, body, context, options) {
-    const method = 'POST';
-    const fetchOptions = { body, headers: new Headers(options.headers), method };
-    const metadata = { errors: [], resource: [] };
-    const { data } = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
+    const { fetchOptions, metadata } = this._setupFetch(options.headers, context.method);
+    const { data } = await this._fetch(endpoint, fetchOptions, context, options, metadata);
+    return data;
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} endpoint
+   * @param {Array<string>} values
+   * @param {Object} context
+   * @param {Object} options
+   * @return {Promise}
+   */
+  async _put(endpoint, values, context, options) {
+    const { fetchOptions, metadata } = this._setupFetch(options.headers, context.method, values);
+    const { data } = await this._fetch(endpoint, fetchOptions, context, options, metadata);
     return data;
   }
 
@@ -732,6 +738,20 @@ export default class RestClient {
   /**
    *
    * @private
+   * @param {Object} headers
+   * @param {string} method
+   * @param {Array<string>} [resource]
+   * @return {Object}
+   */
+  _setupFetch(headers, method, resource = []) {
+    const fetchOptions = { headers: new Headers(headers), method };
+    const metadata = { errors: [], method, resource };
+    return { fetchOptions, metadata };
+  }
+
+  /**
+   *
+   * @private
    * @param {string} method
    * @param {string} path
    * @param {string|Array<string>} resource
@@ -862,13 +882,40 @@ export default class RestClient {
 
   /**
    *
+   * @param {Object} config
+   * @param {Object} [config.options]
+   * @param {string} config.path
+   * @param {Object} [config.queryParams]
+   * @param {string|Array<string>} [config.resource]
+   * @return {Promise}
+   */
+  async put({ options = {}, path, queryParams = null, resource = null } = {}) {
+    if (!path) return null;
+    const { context, _options } = this._setupRequest('PUT', path, resource, queryParams, options);
+
+    const endpoints = this._buildEndpoints({
+      path, queryParams, resource: resource ? context.resource.values : null,
+    }, _options);
+
+    const promises = [];
+
+    endpoints.forEach(({ endpoint, values }) => {
+      const castValues = values ? castArray(values) : [];
+      promises.push(this._put(endpoint, castValues, context, _options));
+    });
+
+    return this._resolveData(promises, context);
+  }
+
+  /**
+   *
    * @param {string} method
    * @param {string} name
    * @param {Object} baseConfig
    * @return {void}
    */
   shortcut(method, name, baseConfig) {
-    const methods = ['get', 'head', 'patch', 'post', 'put', 'delete'];
+    const methods = ['get', 'post', 'put', 'delete'];
     if (!methods.find(value => value === method)) return;
 
     /**
