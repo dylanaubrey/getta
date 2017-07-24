@@ -915,7 +915,7 @@ export default class RestClient {
    * @return {void}
    */
   shortcut(method, name, baseConfig) {
-    const methods = ['get', 'head', 'patch', 'post', 'put', 'delete'];
+    const methods = ['get', 'post', 'put', 'delete'];
     if (!methods.find(value => value === method)) return;
 
     /**
