@@ -359,42 +359,26 @@ export default class RestClient {
       logger.error(errors);
     }
 
-    const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
-
     if (errors) {
       errors = castArray(errors);
-      requests.push({ endpoint, errors });
-      return { endpoint, errors };
+      return this._resolveFetch(context, options, res, { endpoint, errors });
     }
 
-    const { headers, ok, status, statusText } = res;
+    const { ok, status, statusText } = res;
     const responseGroup = getResponseGroup(status);
     const _metadata = { ...metadata, endpoint, method, ok, responseGroup, status, statusText };
 
-    if (responseGroup === 'redirection' && headers.get('location')) {
-      return this._handleRedirect(method, fetchOptions, context, options, headers, _metadata);
+    if (responseGroup === 'redirection' && res.headers.get('location')) {
+      return this._handleRedirect(method, fetchOptions, context, options, res, _metadata);
     }
 
     if (responseGroup === 'serverError') {
       return this._handleRetry(
-        method, endpoint, fetchOptions, context, options, headers, _metadata,
+        method, endpoint, fetchOptions, context, options, res, _metadata,
       );
     }
 
-    if (!headers.get('content-type')) {
-      requests.push(_metadata);
-      return { headers, metadata: _metadata };
-    }
-
-    const parsed = options.bodyParser(await res[options.streamReader](), context);
-
-    if (parsed.errors) {
-      errors = castArray(parsed.errors);
-      _metadata.errors = [..._metadata.errors, ...errors];
-    }
-
-    requests.push(_metadata);
-    return { data: parsed.data, headers, metadata: _metadata };
+    return this._resolveFetch(context, options, res, _metadata);
   }
 
   /**
@@ -410,7 +394,7 @@ export default class RestClient {
   async _get(endpoint, values, context, options, resourceKey) {
     const cache = await this._checkCache(endpoint);
     const { cacheability } = cache;
-    let res;
+    let res, fromCache;
 
     if (!cacheability || cacheability.noCache || !cacheability.check()) {
       const headers = { ...options.headers };
@@ -421,12 +405,13 @@ export default class RestClient {
       const metadata = { errors: [], resource: values };
       res = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
     } else {
+      fromCache = true;
       const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
-      requests.push({ endpoint, fromCache: true, resource: values });
+      requests.push({ endpoint, fromCache, resource: values });
     }
 
     const metadata = res ? res.metadata : {};
-    const data = !res || metadata.status === 304 ? cache.data : res.data;
+    const data = fromCache || metadata.status === 304 ? cache.data : res.data;
     if (metadata.ok || metadata.status === 304) this._setCacheEntry(endpoint, data, res.headers);
     if (metadata.status === 404) this._deleteCacheEntry(endpoint);
     const castData = data ? castArray(data) : [];
@@ -467,23 +452,21 @@ export default class RestClient {
    * @param {Object} fetchOptions
    * @param {Object} context
    * @param {Object} options
-   * @param {Headers} headers
+   * @param {Object} res
    * @param {Object} metadata
    * @return {Promise}
    */
-  async _handleRedirect(method, fetchOptions, context, options, headers, metadata) {
+  async _handleRedirect(method, fetchOptions, context, options, res, metadata) {
     if (!metadata.redirects) metadata.redirects = 1;
-    const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
 
     if (metadata.redirects === 5) {
       metadata.errors.push('The request exceeded the maximum number of redirects.');
-      requests.push(metadata);
-      return { headers, metadata };
+      return this._resolveFetch(context, options, res, metadata);
     }
 
     metadata.redirects += 1;
     const redirectMethod = metadata.status === 303 ? 'GET' : method;
-    const location = headers.get('location');
+    const location = res.headers.get('location');
     return this._fetch(redirectMethod, location, fetchOptions, context, options, metadata);
   }
 
@@ -495,23 +478,17 @@ export default class RestClient {
    * @param {Object} fetchOptions
    * @param {Object} context
    * @param {Object} options
-   * @param {Headers} headers
+   * @param {Object} res
    * @param {Object} metadata
    * @return {Promise}
    */
-  async _handleRetry(method, endpoint, fetchOptions, context, options, headers, metadata) {
+  async _handleRetry(method, endpoint, fetchOptions, context, options, res, metadata) {
     if (!metadata.retries) {
       metadata.retries = 1;
       metadata.retryTimer = 100;
     }
 
-    const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
-
-    if (metadata.retries === 3) {
-      requests.push(metadata);
-      return { headers, metadata };
-    }
-
+    if (metadata.retries === 3) return this._resolveFetch(context, options, res, metadata);
     metadata.retries += 1;
     metadata.retryTimer *= 2;
     await sleep(metadata.retryTimer);
@@ -577,6 +554,41 @@ export default class RestClient {
     const data = flatten(await Promise.all(promises)).filter(value => !!value);
     const metadata = this._getRequestsTracker(path, method, fetchID);
     return { data, metadata };
+  }
+
+  /**
+   *
+   * @private
+   * @param {Object} context
+   * @param {Object} options
+   * @param {Object} res
+   * @param {Object} metadata
+   * @return {Promise}
+   */
+  async _resolveFetch(context, options, res, metadata) {
+    const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
+
+    if (!res) {
+      requests.push(metadata);
+      return { metadata };
+    }
+
+    const headers = res.headers;
+
+    if (!headers.get('content-type')) {
+      requests.push(metadata);
+      return { headers, metadata };
+    }
+
+    const parsed = options.bodyParser(await res[options.streamReader](), context, metadata);
+
+    if (parsed.errors) {
+      const errors = castArray(parsed.errors);
+      metadata.errors = [...metadata.errors, ...errors];
+    }
+
+    requests.push(metadata);
+    return { data: parsed.data, headers, metadata };
   }
 
   /**
