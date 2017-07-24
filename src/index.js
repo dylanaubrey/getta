@@ -80,14 +80,8 @@ export default class RestClient {
      */
     streamReader = 'json',
   } = {}) {
-    if (instance && !newInstance) {
-      return instance;
-    }
-
-    if (!baseURL) {
-      throw new Error('baseURL is a mandatory property for a rest client.');
-    }
-
+    if (instance && !newInstance) return instance;
+    if (!baseURL) throw new Error('baseURL is a mandatory property for a rest client.');
     this._baseURL = baseURL;
     this._batchLimit = batchLimit;
     this._bodyParser = bodyParser;
@@ -365,13 +359,11 @@ export default class RestClient {
       logger.error(errors);
     }
 
-    const { requests } = this._getTracker(context.path, context.method);
-    const fetchID = context.fetchID;
-    if (!requests[fetchID]) requests[fetchID] = [];
+    const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
 
     if (errors) {
       errors = castArray(errors);
-      requests[fetchID].push({ endpoint, errors });
+      requests.push({ endpoint, errors });
       return { endpoint, errors };
     }
 
@@ -390,7 +382,7 @@ export default class RestClient {
     }
 
     if (!headers.get('content-type')) {
-      requests[fetchID].push(_metadata);
+      requests.push(_metadata);
       return { headers, metadata: _metadata };
     }
 
@@ -401,7 +393,7 @@ export default class RestClient {
       _metadata.errors = [..._metadata.errors, ...errors];
     }
 
-    requests[fetchID].push(_metadata);
+    requests.push(_metadata);
     return { data: parsed.data, headers, metadata: _metadata };
   }
 
@@ -429,10 +421,8 @@ export default class RestClient {
       const metadata = { errors: [], resource: values };
       res = await this._fetch(method, endpoint, fetchOptions, context, options, metadata);
     } else {
-      const { requests } = this._getTracker(context.path, context.method);
-      const fetchID = context.fetchID;
-      if (!requests[fetchID]) requests[fetchID] = [];
-      requests[fetchID].push({ endpoint, fromCache: true, resource: values });
+      const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
+      requests.push({ endpoint, fromCache: true, resource: values });
     }
 
     const metadata = res ? res.metadata : {};
@@ -443,6 +433,20 @@ export default class RestClient {
     if (values.length) this._resolveRequests(resourceKey, values, castData, context, metadata);
     if (!context.resource) return castData;
     return this._resolveResource(resourceKey, context.resource.active, castData);
+  }
+
+  /**
+   *
+   * @private
+   * @param {string} path
+   * @param {string} method
+   * @param {string} fetchID
+   * @return {string}
+   */
+  _getRequestsTracker(path, method, fetchID) {
+    const { requests } = this._getTracker(path, method);
+    if (!requests[fetchID]) requests[fetchID] = [];
+    return requests[fetchID];
   }
 
   /**
@@ -469,11 +473,11 @@ export default class RestClient {
    */
   async _handleRedirect(method, fetchOptions, context, options, headers, metadata) {
     if (!metadata.redirects) metadata.redirects = 1;
-    const { requests } = this._getTracker(context.path, context.method);
+    const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
 
     if (metadata.redirects === 5) {
       metadata.errors.push('The request exceeded the maximum number of redirects.');
-      requests[context.fetchID].push(metadata);
+      requests.push(metadata);
       return { headers, metadata };
     }
 
@@ -501,10 +505,10 @@ export default class RestClient {
       metadata.retryTimer = 100;
     }
 
-    const { requests } = this._getTracker(context.path, context.method);
+    const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
 
     if (metadata.retries === 3) {
-      requests[context.fetchID].push(metadata);
+      requests.push(metadata);
       return { headers, metadata };
     }
 
@@ -571,8 +575,7 @@ export default class RestClient {
    */
   async _resolveData(promises, { fetchID, method, path }) {
     const data = flatten(await Promise.all(promises)).filter(value => !!value);
-    const { requests } = this._getTracker(path, method);
-    const metadata = requests[fetchID];
+    const metadata = this._getRequestsTracker(path, method, fetchID);
     return { data, metadata };
   }
 
@@ -590,7 +593,7 @@ export default class RestClient {
    * @return {void}
    */
   async _resolveRequests(resourceKey, values, data, { fetchID, method, path }, metadata) {
-    const { fetching, pending, requests } = this._getTracker(path, method);
+    const { fetching, pending } = this._getTracker(path, method);
 
     values.forEach((value) => {
       const index = fetching.findIndex(obj => obj.value === value);
@@ -601,8 +604,8 @@ export default class RestClient {
       for (let i = pending[value].length - 1; i >= 0; i -= 1) {
         if (pending[value][i].batchID === fetchID) {
           const _fetchID = pending[value][i].fetchID;
-          if (!requests[_fetchID]) requests[_fetchID] = [];
-          requests[_fetchID].push({ batched: true, ...metadata });
+          const requests = this._getRequestsTracker(path, method, _fetchID);
+          requests.push({ batched: true, ...metadata });
           pending[value][i].resolve(match);
           pending[value].splice(i, 1);
         }
