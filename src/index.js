@@ -85,11 +85,7 @@ export default class RestClient {
     this._baseURL = baseURL;
     this._batchLimit = batchLimit;
     this._bodyParser = bodyParser;
-
-    this._cache = new Cachemap(
-      merge({ name: 'getta cachemap', redisOptions: { db: 0 } }, cachemapOptions),
-    );
-
+    this._cache = new Cachemap(merge({ redisOptions: { db: 0 } }, cachemapOptions));
     this._disableCaching = disableCaching;
     this._headers = headers;
     this._streamReader = streamReader;
@@ -407,10 +403,10 @@ export default class RestClient {
     const data = fromCache || metadata.status === 304 ? cache.data : res.data;
     if (metadata.ok || metadata.status === 304) this._setCacheEntry(endpoint, data, res.headers);
     if (metadata.status === 404) this._deleteCacheEntry(endpoint);
-    const castData = data ? castArray(data) : [];
-    if (values.length) this._resolveRequests(resourceKey, values, castData, context, metadata);
-    if (!context.resource) return castData;
-    return this._resolveResource(resourceKey, context.resource.active, castData);
+    if (!context.resource) return data;
+    if (values.length) this._resolveRequests(resourceKey, values, data, context, metadata);
+    if (values.length === 1) return data;
+    return this._resolveResource(resourceKey, context.resource.active, data);
   }
 
   /**
@@ -558,7 +554,15 @@ export default class RestClient {
    */
   async _resolveData(promises, { fetchID, method, path }) {
     const data = flatten(await Promise.all(promises)).filter(value => !!value);
-    const metadata = this._getRequestsTracker(path, method, fetchID);
+    const { requests, timers } = this._getTracker(path, method);
+    const metadata = requests[fetchID];
+    if (timers[fetchID]) clearTimeout(timers[fetchID]);
+
+    timers[fetchID] = setTimeout(() => {
+      delete requests[fetchID];
+      delete timers[fetchID];
+    });
+
     return { data, metadata };
   }
 
@@ -602,7 +606,7 @@ export default class RestClient {
    * @private
    * @param {string} resourceKey
    * @param {Array<string>} values
-   * @param {Array<any>} data
+   * @param {any} data
    * @param {Object} context
    * @param {string} context.fetchID
    * @param {string} context.method
@@ -612,11 +616,20 @@ export default class RestClient {
    */
   async _resolveRequests(resourceKey, values, data, { fetchID, method, path }, metadata) {
     const { fetching, pending } = this._getTracker(path, method);
+    const singleValue = values.length === 1;
 
     values.forEach((value) => {
       const index = fetching.findIndex(obj => obj.value === value);
       if (index !== -1) fetching.splice(index, 1);
-      const match = data.find(obj => get(obj, [resourceKey], null) === value);
+      let match;
+
+      if (singleValue) {
+        match = data;
+      } else {
+        const castData = castArray(data);
+        match = castData.find(obj => get(obj, [resourceKey], null) === value);
+      }
+
       if (!pending[value]) return;
 
       for (let i = pending[value].length - 1; i >= 0; i -= 1) {
@@ -626,6 +639,7 @@ export default class RestClient {
           requests.push({ batched: true, ...metadata });
           pending[value][i].resolve(match);
           pending[value].splice(i, 1);
+          if (!pending[value].length) delete pending[value];
         }
       }
     });
@@ -636,14 +650,15 @@ export default class RestClient {
    * @private
    * @param {string} key
    * @param {Array<string>} values
-   * @param {Array<Object>} data
+   * @param {any} data
    * @return {Array<Object>}
    */
   _resolveResource(key, values, data) {
+    const castData = castArray(data);
     const filtered = [];
 
     values.forEach((value) => {
-      const match = data.find(obj => get(obj, [key], null) === value);
+      const match = castData.find(obj => get(obj, [key], null) === value);
       if (match) filtered.push(match);
     });
 
@@ -718,7 +733,10 @@ export default class RestClient {
   _setTracker(path, method) {
     if (get(this._tracker, [path, method], null)) return;
     this._tracker[path] = {};
-    this._tracker[path][method] = { active: [], fetching: [], pending: {}, requests: {} };
+
+    this._tracker[path][method] = {
+      active: [], fetching: [], pending: {}, requests: {}, timers: {},
+    };
   }
 
   /**

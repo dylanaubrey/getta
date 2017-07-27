@@ -87,7 +87,7 @@ describe('the .get() method', () => {
     });
 
     it('should cache the data against the endpoint', async () => {
-      expect(await getta._cache.size()).to.eql(1);
+      expect(await getta._cache.size()).to.eql(2);
       const entry = await getta._cache.get(`${path}/${resource}`);
       expect(entry).to.eql(data[resource].body);
     });
@@ -120,7 +120,7 @@ describe('the .get() method', () => {
     });
 
     it('should cache the data against the endpoint', async () => {
-      expect(await getta._cache.size()).to.eql(1);
+      expect(await getta._cache.size()).to.eql(2);
       const entry = await getta._cache.get(`${path}/${resource}${buildQueryString(queryParams)}`);
       expect(entry).to.eql(data[resource].body);
     });
@@ -239,11 +239,11 @@ describe('the .get() method', () => {
       });
 
       it('should update the entry in the cache', async () => {
-        expect(await getta._cache.size()).to.eql(1);
+        expect(await getta._cache.size()).to.eql(2);
         let cacheability = await getta._cache.has(`${path}/${resource}`);
         expect(cacheability.maxAge).to.eql(6000);
         await getta.getProduct({ resource });
-        expect(await getta._cache.size()).to.eql(1);
+        expect(await getta._cache.size()).to.eql(2);
         cacheability = await getta._cache.has(`${path}/${resource}`);
         expect(cacheability.maxAge).to.eql(10000);
       });
@@ -299,9 +299,9 @@ describe('the .get() method', () => {
     });
 
     it('should delete the entry in the cache', async () => {
-      expect(await getta._cache.size()).to.eql(1);
+      expect(await getta._cache.size()).to.eql(2);
       await getta.getProduct({ options, resource });
-      expect(await getta._cache.size()).to.eql(0);
+      expect(await getta._cache.size()).to.eql(1);
     });
   });
 
@@ -336,8 +336,8 @@ describe('the .get() method', () => {
       res = await getta.getProduct({ options, resource });
     });
 
-    it('should return an empty data array', () => {
-      expect(res.data.length).to.eql(0);
+    it('should return the message in the body', () => {
+      expect(res.data[0]).to.eql({ message });
     });
 
     it('should return metadata describing the error and the number of redirects', () => {
@@ -377,8 +377,8 @@ describe('the .get() method', () => {
       res = await getta.getProduct({ options, resource });
     });
 
-    it('should return an empty data array.', () => {
-      expect(res.data.length).to.eql(0);
+    it('should return the message in the body.', () => {
+      expect(res.data[0]).to.eql({ message });
     });
 
     it('should return metadata with the number of retries', () => {
@@ -415,7 +415,7 @@ describe('the .get() method', () => {
     });
 
     it('should cache each resource set against its respective endpoint', async () => {
-      expect(await getta._cache.size()).to.eql(2);
+      expect(await getta._cache.size()).to.eql(3);
       const promises = [];
       promises.push(getta._cache.get(`${path}/${batchOne.join()}`));
       promises.push(getta._cache.get(`${path}/${batchTwo.join()}`));
@@ -456,9 +456,9 @@ describe('the .get() method', () => {
     });
 
     it('should cache each data resource set against its respective endpoint', async () => {
-      expect(await getta._cache.size()).to.eql(1);
-      await getta.getProduct({ resource, options: { batchLimit: 2 } });
       expect(await getta._cache.size()).to.eql(2);
+      await getta.getProduct({ resource, options: { batchLimit: 2 } });
+      expect(await getta._cache.size()).to.eql(3);
       const promises = [];
       promises.push(getta._cache.get(`${path}/${batchOne.join()}`));
       promises.push(getta._cache.get(`${path}/${batchTwo.join()}`));
@@ -505,7 +505,7 @@ describe('the .get() method', () => {
     });
 
     it('should cache the data resource set against its endpoint', async () => {
-      expect(await getta._cache.size()).to.eql(1);
+      expect(await getta._cache.size()).to.eql(2);
       const entry = await getta._cache.get(`${path}/${resource.join()}`);
       expect(entry.sort(sortValues)).to.eql(getValues());
     });
@@ -573,7 +573,7 @@ describe('the .get() method', () => {
     });
 
     it('should cache the resource data set against its endpoint', async () => {
-      expect(await getta._cache.size()).to.eql(1);
+      expect(await getta._cache.size()).to.eql(2);
       const entry = await getta._cache.get(`${path}`);
       expect(entry.sort(sortValues)).to.eql(getValues());
     });
