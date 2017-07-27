@@ -359,7 +359,11 @@ export default class RestClient {
 
     const { ok, status, statusText } = res;
     const responseGroup = getResponseGroup(status);
-    const _metadata = { ...metadata, endpoint, ok, responseGroup, status, statusText };
+    const cacheControl = res.headers.get('cache-control');
+
+    const _metadata = {
+      ...metadata, cacheControl, endpoint, ok, responseGroup, status, statusText,
+    };
 
     if (responseGroup === 'redirection' && res.headers.get('location')) {
       return this._handleRedirect(fetchOptions, context, options, res, _metadata);
@@ -396,7 +400,10 @@ export default class RestClient {
     } else {
       fromCache = true;
       const requests = this._getRequestsTracker(context.path, context.method, context.fetchID);
-      requests.push({ endpoint, fromCache, resource: values });
+
+      requests.push({
+        cacheControl: cacheability.printCacheControl(), endpoint, fromCache, resource: values,
+      });
     }
 
     const metadata = res ? res.metadata : {};
