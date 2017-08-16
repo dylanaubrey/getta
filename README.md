@@ -8,7 +8,4 @@ An isomorphic rest client based on the Fetch API.
 [![dependencies Status](https://david-dm.org/dylanaubrey/getta/status.svg)](https://david-dm.org/dylanaubrey/getta)
 [![devDependencies Status](https://david-dm.org/dylanaubrey/getta/dev-status.svg)](https://david-dm.org/dylanaubrey/getta?type=dev)
 
-[![NPM](https://nodei.co/npm/getta.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/getta/)
-[![NPM](https://nodei.co/npm-dl/getta.png?months=3&height=2)](https://nodei.co/npm/getta/)
-
 ### More to follow...
