@@ -408,7 +408,11 @@ export default class RestClient {
 
     const metadata = res ? res.metadata : {};
     const data = fromCache || metadata.status === 304 ? cache.data : res.data;
-    if (metadata.ok || metadata.status === 304) this._setCacheEntry(endpoint, data, res.headers);
+
+    if (res && (metadata.ok || metadata.status === 304)) {
+      this._setCacheEntry(endpoint, data, res.headers);
+    }
+
     if (metadata.status === 404) this._deleteCacheEntry(endpoint);
     if (!context.resource) return data;
     if (values.length) this._resolveRequests(resourceKey, values, data, context, metadata);
