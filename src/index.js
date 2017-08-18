@@ -817,6 +817,14 @@ export default class RestClient {
 
   /**
    *
+   * @return {void}
+   */
+  clearCache() {
+    this._cache.clear();
+  }
+
+  /**
+   *
    * @param {Object} config
    * @param {Object} [config.options]
    * @param {string} config.path

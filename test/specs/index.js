@@ -79,7 +79,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
     });
 
     it('should return the requested data', () => {
@@ -112,7 +112,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
     });
 
     it('should return the requested data', () => {
@@ -230,7 +230,7 @@ describe('the .get() method', () => {
       });
 
       afterEach(async () => {
-        await getta._cache.clear();
+        await getta.clearCache();
       });
 
       it('should return the requested data', async () => {
@@ -289,7 +289,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
     });
 
     it('should return no data and the error metadata', async () => {
@@ -407,7 +407,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
     });
 
     it('should return the requested data', () => {
@@ -446,7 +446,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
       fetchMock.reset();
     });
 
@@ -497,7 +497,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
     });
 
     it('should return the requested data', async () => {
@@ -535,7 +535,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
     });
 
     it('should return the requested data', async () => {
@@ -565,7 +565,7 @@ describe('the .get() method', () => {
     });
 
     afterEach(async () => {
-      await getta._cache.clear();
+      await getta.clearCache();
     });
 
     it('should return the requested data', async () => {
