@@ -241,11 +241,11 @@ describe('the .get() method', () => {
       it('should update the entry in the cache', async () => {
         expect(await getta._cache.size()).to.eql(2);
         let cacheability = await getta._cache.has(`${path}/${resource}`);
-        expect(cacheability.maxAge).to.eql(6000);
+        expect(cacheability.metadata.cacheControl.maxAge).to.eql(6000);
         await getta.getProduct({ resource });
         expect(await getta._cache.size()).to.eql(2);
         cacheability = await getta._cache.has(`${path}/${resource}`);
-        expect(cacheability.maxAge).to.eql(10000);
+        expect(cacheability.metadata.cacheControl.maxAge).to.eql(10000);
       });
     });
   });

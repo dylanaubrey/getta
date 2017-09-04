@@ -389,11 +389,12 @@ export default class RestClient {
   async _get(endpoint, values, context, options, resourceKey) {
     const cache = await this._checkCache(endpoint);
     const { cacheability } = cache;
+    const noCache = get(cacheability, ['metadata', 'cacheControl', 'noCache'], false);
     let res, fromCache;
 
-    if (!cacheability || cacheability.noCache || !cacheability.check()) {
+    if (!cacheability || noCache || !cacheability.checkTTL()) {
       const headers = { ...options.headers };
-      const etag = cacheability && cacheability.etag;
+      const etag = get(cacheability, ['metadata', 'etag'], null);
       if (etag) headers['If-None-Match'] = etag;
       const { fetchOptions, metadata } = this._setupFetch(headers, context.method, values);
       res = await this._fetch(endpoint, fetchOptions, context, options, metadata);
@@ -688,10 +689,7 @@ export default class RestClient {
     if (this._disableCaching) return;
 
     try {
-      this._cache.set(endpoint, data, { cacheHeaders: {
-        cacheControl: headers.get('cache-control'),
-        etag: headers.get('etag'),
-      } });
+      this._cache.set(endpoint, data, { cacheHeaders: headers });
     } catch (err) {
       logger.error(err);
     }
