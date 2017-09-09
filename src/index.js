@@ -74,6 +74,13 @@ export default class RestClient {
      */
     newInstance = false,
     /**
+     * Optional global query params to be
+     * added to every request.
+     *
+     * @type {Object}
+     */
+    queryParams = {},
+    /**
      * Response stream reader to use.
      *
      * @type {string}
@@ -88,6 +95,7 @@ export default class RestClient {
     this._cache = new Cachemap(merge({ redisOptions: { db: 0 } }, cachemapOptions));
     this._disableCaching = disableCaching;
     this._headers = headers;
+    this._queryParams = queryParams;
     this._streamReader = streamReader;
     instance = this;
     return instance;
@@ -712,7 +720,8 @@ export default class RestClient {
       _resource = method === 'GET' ? { active: values, batched: [], pending: [] } : { values };
     }
 
-    return { method, path, resource: _resource, queryParams, fetchID: uuidV1() };
+    const _queryParams = queryParams ? { ...this._queryParams, ...queryParams } : this._queryParams;
+    return { method, path, resource: _resource, queryParams: _queryParams, fetchID: uuidV1() };
   }
 
   /**
@@ -835,7 +844,7 @@ export default class RestClient {
     const { context, _options } = this._setupRequest('DELETE', path, resource, queryParams, options);
 
     const endpoints = this._buildEndpoints({
-      path, queryParams, resource: resource ? context.resource.values : null,
+      ...context, resource: resource ? context.resource.values : null,
     }, _options);
 
     const promises = [];
@@ -880,7 +889,7 @@ export default class RestClient {
 
     if (!skip) {
       const endpoints = this._buildEndpoints({
-        path, queryParams, resource: endpointsResource,
+        ...context, resource: endpointsResource,
       }, _options);
 
       endpoints.forEach(({ endpoint, values }) => {
@@ -905,7 +914,7 @@ export default class RestClient {
   async post({ body, options = {}, path, queryParams = null, resource = null } = {}) {
     if (!path || !body) return null;
     const { context, _options } = this._setupRequest('POST', path, resource, queryParams, options);
-    const endpoints = this._buildEndpoints({ path, queryParams });
+    const endpoints = this._buildEndpoints(context);
     const promises = [];
 
     endpoints.forEach(({ endpoint }) => {
@@ -929,7 +938,7 @@ export default class RestClient {
     const { context, _options } = this._setupRequest('PUT', path, resource, queryParams, options);
 
     const endpoints = this._buildEndpoints({
-      path, queryParams, resource: resource ? context.resource.values : null,
+      ...context, resource: resource ? context.resource.values : null,
     }, _options);
 
     const promises = [];

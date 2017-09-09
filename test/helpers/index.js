@@ -26,6 +26,12 @@ export const path = 'content/catalog/product';
  *
  * @type {Object}
  */
+export const globalQueryParam = { api_key: '123456789' };
+
+/**
+ *
+ * @type {Object}
+ */
 export const defaultHeaders = {
   'cache-control': 'public, max-age=6000',
   'content-type': 'application/json',
@@ -101,17 +107,19 @@ export const mock = function mock({ batch, headers, method, queryParams, resourc
  *
  * @param {Object} config
  * @param {string} config.method
+ * @param {Object} config.queryParams
  * @param {Array<string>} config.resource
  * @return {string}
  */
-export const mockAll = function mockAll({ headers, method, resource }) {
+export const mockAll = function mockAll({ headers, method, queryParams, resource }) {
   const body = [];
 
   resource.forEach((value) => {
     body.push(data[value].body);
   });
 
-  const url = `${baseURL}${path}`;
+  const queryString = !queryParams ? '' : buildQueryString(queryParams);
+  const url = `${baseURL}${path}${queryString}`;
   fetchMock.mock(url, { body, headers: headers || defaultHeaders }, { method, name: url });
   return url;
 };
@@ -159,8 +167,8 @@ export const mockGet = function mockGet({ batch, headers, queryParams, resource 
  * @param {Array<string>} config.resource
  * @return {Object}
  */
-export const mockGetAll = function mockGetAll({ headers, resource }) {
-  return mockAll({ headers, method: 'get', resource });
+export const mockGetAll = function mockGetAll({ headers, queryParams, resource }) {
+  return mockAll({ headers, method: 'get', queryParams, resource });
 };
 
 /**
@@ -264,8 +272,9 @@ export const setupDeleteAll = function setupDeleteAll({ headers, newInstance = t
 export const setupGet = function setupGet({
   batch, headers, newInstance = true, queryParams, resource,
 }) {
-  const urls = mockGet({ batch, headers, queryParams, resource });
-  const getta = new Getta({ baseURL, cachemapOptions, newInstance });
+  const _queryParams = queryParams ? { ...globalQueryParam, ...queryParams } : globalQueryParam;
+  const urls = mockGet({ batch, headers, queryParams: _queryParams, resource });
+  const getta = new Getta({ baseURL, cachemapOptions, newInstance, queryParams: globalQueryParam });
   getta.shortcut('get', 'getProduct', { options: { batch }, path, queryParams });
   return { getta, urls };
 };
@@ -279,8 +288,8 @@ export const setupGet = function setupGet({
  * @return {Object}
  */
 export const setupGetAll = function setupGetAll({ headers, newInstance = true, resource }) {
-  const url = mockGetAll({ headers, resource });
-  const getta = new Getta({ baseURL, cachemapOptions, newInstance });
+  const url = mockGetAll({ headers, queryParams: globalQueryParam, resource });
+  const getta = new Getta({ baseURL, cachemapOptions, newInstance, queryParams: globalQueryParam });
   getta.shortcut('get', 'getProduct', { path });
   return { getta, url };
 };

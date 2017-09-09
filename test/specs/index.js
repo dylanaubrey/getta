@@ -9,6 +9,7 @@ import {
   baseURL,
   buildQueryString,
   cachemapOptions,
+  globalQueryParam,
   mockGet,
   path,
   productArgs,
@@ -88,7 +89,7 @@ describe('the .get() method', () => {
 
     it('should cache the data against the endpoint', async () => {
       expect(await getta._cache.size()).to.eql(2);
-      const entry = await getta._cache.get(`${path}/${resource}`);
+      const entry = await getta._cache.get(`${path}/${resource}${buildQueryString(globalQueryParam)}`);
       expect(entry).to.eql(data[resource].body);
     });
   });
@@ -121,7 +122,7 @@ describe('the .get() method', () => {
 
     it('should cache the data against the endpoint', async () => {
       expect(await getta._cache.size()).to.eql(2);
-      const entry = await getta._cache.get(`${path}/${resource}${buildQueryString(queryParams)}`);
+      const entry = await getta._cache.get(`${path}/${resource}${buildQueryString({ ...globalQueryParam, ...queryParams })}`);
       expect(entry).to.eql(data[resource].body);
     });
   });
@@ -240,11 +241,11 @@ describe('the .get() method', () => {
 
       it('should update the entry in the cache', async () => {
         expect(await getta._cache.size()).to.eql(2);
-        let cacheability = await getta._cache.has(`${path}/${resource}`);
+        let cacheability = await getta._cache.has(`${path}/${resource}${buildQueryString(globalQueryParam)}`);
         expect(cacheability.metadata.cacheControl.maxAge).to.eql(6000);
         await getta.getProduct({ resource });
         expect(await getta._cache.size()).to.eql(2);
-        cacheability = await getta._cache.has(`${path}/${resource}`);
+        cacheability = await getta._cache.has(`${path}/${resource}${buildQueryString(globalQueryParam)}`);
         expect(cacheability.metadata.cacheControl.maxAge).to.eql(10000);
       });
     });
@@ -393,7 +394,7 @@ describe('the .get() method', () => {
     const batchTwo = ['183-3905', '202-3315'];
 
     before(() => {
-      mockGet({ batch: true, resource: batchOne });
+      mockGet({ batch: true, queryParams: globalQueryParam, resource: batchOne });
       const setup = setupGet({ batch: true, resource: batchTwo });
       getta = setup.getta;
     });
@@ -417,8 +418,8 @@ describe('the .get() method', () => {
     it('should cache each resource set against its respective endpoint', async () => {
       expect(await getta._cache.size()).to.eql(3);
       const promises = [];
-      promises.push(getta._cache.get(`${path}/${batchOne.join()}`));
-      promises.push(getta._cache.get(`${path}/${batchTwo.join()}`));
+      promises.push(getta._cache.get(`${path}/${batchOne.join()}${buildQueryString(globalQueryParam)}`));
+      promises.push(getta._cache.get(`${path}/${batchTwo.join()}${buildQueryString(globalQueryParam)}`));
       const entries = await Promise.all(promises);
       expect(flatten(entries).sort(sortValues)).to.eql(getValues());
     });
@@ -431,7 +432,7 @@ describe('the .get() method', () => {
     const batchTwo = ['183-3905', '202-3315'];
 
     before(() => {
-      urls = mockGet({ batch: true, resource: batchOne });
+      urls = mockGet({ batch: true, queryParams: globalQueryParam, resource: batchOne });
       const setup = setupGet({ batch: true, resource: batchTwo });
       getta = setup.getta;
     });
@@ -460,8 +461,8 @@ describe('the .get() method', () => {
       await getta.getProduct({ resource, options: { batchLimit: 2 } });
       expect(await getta._cache.size()).to.eql(3);
       const promises = [];
-      promises.push(getta._cache.get(`${path}/${batchOne.join()}`));
-      promises.push(getta._cache.get(`${path}/${batchTwo.join()}`));
+      promises.push(getta._cache.get(`${path}/${batchOne.join()}${buildQueryString(globalQueryParam)}`));
+      promises.push(getta._cache.get(`${path}/${batchTwo.join()}${buildQueryString(globalQueryParam)}`));
       const entries = await Promise.all(promises);
       expect(flatten(entries).sort(sortValues)).to.eql(getValues());
     });
@@ -506,7 +507,7 @@ describe('the .get() method', () => {
 
     it('should cache the data resource set against its endpoint', async () => {
       expect(await getta._cache.size()).to.eql(2);
-      const entry = await getta._cache.get(`${path}/${resource.join()}`);
+      const entry = await getta._cache.get(`${path}/${resource.join()}${buildQueryString(globalQueryParam)}`);
       expect(entry.sort(sortValues)).to.eql(getValues());
     });
   });
@@ -574,7 +575,7 @@ describe('the .get() method', () => {
 
     it('should cache the resource data set against its endpoint', async () => {
       expect(await getta._cache.size()).to.eql(2);
-      const entry = await getta._cache.get(`${path}`);
+      const entry = await getta._cache.get(`${path}${buildQueryString(globalQueryParam)}`);
       expect(entry.sort(sortValues)).to.eql(getValues());
     });
   });
