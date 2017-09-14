@@ -205,11 +205,12 @@ export default class RestClient {
    * @param {number} [options.batchLimit]
    * @return {Array<Object>}
    */
-  _buildEndpoints({ path, queryParams, resource }, { batch, batchLimit } = {}) {
-    let endpoint = resource ? `${path}/{resource}` : path;
+  _buildEndpoints({ path, queryParams, resource, resourceKey }, { batch, batchLimit } = {}) {
+    const regex = new RegExp(`{${resourceKey}}`);
+    let endpoint = resource && !regex.test(path) ? `${path}/{${resourceKey}}` : path;
     if (queryParams) endpoint += this._buildQueryString(queryParams);
     if (!resource) return [{ endpoint }];
-    return this._populateResource(endpoint, resource, batch, batchLimit);
+    return this._populateResource(endpoint, regex, resource, batch, batchLimit);
   }
 
   /**
@@ -508,13 +509,13 @@ export default class RestClient {
    *
    * @private
    * @param {string} endpoint
+   * @param {RegExp} regex
    * @param {Array<string>} resource
    * @param {boolean} batch
    * @param {number} batchLimit
    * @return {Array<Object>}
    */
-  _populateResource(endpoint, resource, batch, batchLimit) {
-    const regex = /{resource}/;
+  _populateResource(endpoint, regex, resource, batch, batchLimit) {
     const endpoints = [];
 
     if (!batch) {
@@ -738,7 +739,7 @@ export default class RestClient {
       streamReader: this._streamReader,
     };
 
-    return merge(defaultOptions, options);
+    return merge({}, defaultOptions, options);
   }
 
   /**
@@ -837,15 +838,16 @@ export default class RestClient {
    * @param {string} config.path
    * @param {Object} [config.queryParams]
    * @param {string|Array<string>} [config.resource]
+   * @param {string} [config.resourceKey]
    * @return {Promise}
    */
-  async delete({ options = {}, path, queryParams = null, resource = null } = {}) {
+  async delete({ options = {}, path, queryParams = null, resource = null, resourceKey = 'id' } = {}) {
     if (!path) return null;
     const { context, _options } = this._setupRequest('DELETE', path, resource, queryParams, options);
 
-    const endpoints = this._buildEndpoints({
-      ...context, resource: resource ? context.resource.values : null,
-    }, _options);
+    const endpoints = this._buildEndpoints(
+      { ...context, resource: resource ? context.resource.values : null, resourceKey }, _options,
+    );
 
     const promises = [];
 
@@ -888,9 +890,9 @@ export default class RestClient {
     }
 
     if (!skip) {
-      const endpoints = this._buildEndpoints({
-        ...context, resource: endpointsResource,
-      }, _options);
+      const endpoints = this._buildEndpoints(
+        { ...context, resource: endpointsResource, resourceKey }, _options,
+      );
 
       endpoints.forEach(({ endpoint, values }) => {
         const castValues = values ? castArray(values) : [];
@@ -909,12 +911,15 @@ export default class RestClient {
    * @param {string} config.path
    * @param {Object} [config.queryParams]
    * @param {string|Array<string>} [config.resource]
+   * @param {string} [config.resourceKey]
    * @return {Promise}
    */
-  async post({ body, options = {}, path, queryParams = null, resource = null } = {}) {
+  async post({
+    body, options = {}, path, queryParams = null, resource = null, resourceKey = 'id',
+  } = {}) {
     if (!path || !body) return null;
     const { context, _options } = this._setupRequest('POST', path, resource, queryParams, options);
-    const endpoints = this._buildEndpoints(context);
+    const endpoints = this._buildEndpoints({ ...context, resourceKey });
     const promises = [];
 
     endpoints.forEach(({ endpoint }) => {
@@ -931,15 +936,16 @@ export default class RestClient {
    * @param {string} config.path
    * @param {Object} [config.queryParams]
    * @param {string|Array<string>} [config.resource]
+   * @param {string} [config.resourceKey]
    * @return {Promise}
    */
-  async put({ options = {}, path, queryParams = null, resource = null } = {}) {
+  async put({ options = {}, path, queryParams = null, resource = null, resourceKey = 'id' } = {}) {
     if (!path) return null;
     const { context, _options } = this._setupRequest('PUT', path, resource, queryParams, options);
 
-    const endpoints = this._buildEndpoints({
-      ...context, resource: resource ? context.resource.values : null,
-    }, _options);
+    const endpoints = this._buildEndpoints(
+      { ...context, resource: resource ? context.resource.values : null, resourceKey }, _options,
+    );
 
     const promises = [];
 
