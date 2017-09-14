@@ -200,6 +200,7 @@ export default class RestClient {
    * @param {string} context.path
    * @param {Object} context.queryParams
    * @param {Array<string>} context.resource
+   * @param {string} context.resourceKey
    * @param {Object} [options]
    * @param {boolean} [options.batch]
    * @param {number} [options.batchLimit]
