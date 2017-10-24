@@ -1,5 +1,6 @@
 import Cachemap from 'cachemap';
-import { castArray, flatten, get, merge } from 'lodash';
+import { castArray, flatten, get, isEmpty, merge } from 'lodash';
+import querystring from 'querystring';
 import uuidV1 from 'uuid/v1';
 import { getResponseGroup, sleep } from './helpers';
 import logger from './logger';
@@ -181,16 +182,7 @@ export default class RestClient {
    * @return {string}
    */
   _buildQueryString(queryParams) {
-    let queryString = '';
-    let paramCount = 0;
-
-    Object.keys(queryParams).forEach((key) => {
-      paramCount += 1;
-      const prefix = paramCount === 1 ? '?' : '&';
-      queryString += `${prefix}${key}=${queryParams[key]}`;
-    });
-
-    return queryString;
+    return `?${querystring.stringify(queryParams)}`;
   }
 
   /**
@@ -209,7 +201,7 @@ export default class RestClient {
   _buildEndpoints({ path, queryParams, resource, resourceKey }, { batch, batchLimit } = {}) {
     const regex = new RegExp(`{${resourceKey}}`);
     let endpoint = resource && !regex.test(path) ? `${path}/{${resourceKey}}` : path;
-    if (queryParams) endpoint += this._buildQueryString(queryParams);
+    if (!isEmpty(queryParams)) endpoint += this._buildQueryString(queryParams);
     if (!resource) return [{ endpoint }];
     return this._populateResource(endpoint, regex, resource, batch, batchLimit);
   }
