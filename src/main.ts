@@ -49,10 +49,11 @@ import {
   RequestOptions,
   RequestTracker,
   ResponseDataWithErrors,
+  ShortcutProperties,
   StreamReader,
 } from "./types";
 
-export default class Getta {
+export class Getta {
   private _basePath: string;
   private _bodyParser: Func;
   private _cache?: Cachemap;
@@ -125,6 +126,7 @@ export default class Getta {
       throw new Error(`${INVALID_FETCH_METHOD} ${method}`);
     }
 
+    // @ts-ignore
     this[name] = (path: string, ...rest: any[]) => {
       let args: [string, RequestOptions?] | [string, BodyInit?, RequestOptions?];
 
@@ -355,4 +357,8 @@ export default class Getta {
 
     this._requestTracker.active.push(requestHash);
   }
+}
+
+export default function createRestClient<T extends string | number | symbol>(options: ConstructorOptions) {
+  return new Getta(options) as Getta & ShortcutProperties<T>;
 }

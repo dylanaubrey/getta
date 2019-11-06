@@ -6,6 +6,10 @@ export type FetchMethod = "get" | "post" | "put" | "delete";
 
 export type StreamReader = "arrayBuffer" | "blob" | "formData" | "json" | "text";
 
+export type ShortcutProperties<T extends string | number | symbol> = {
+  [K in T]: (...args: any[]) => ResponseDataWithErrors;
+};
+
 export interface ConstructorOptions {
   basePath: string;
   bodyParser?: Func;

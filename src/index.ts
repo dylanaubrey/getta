@@ -1,3 +1,3 @@
 export * from "./constants";
-export { default } from "./main";
+export { default, Getta } from "./main";
 export * from "./types";
