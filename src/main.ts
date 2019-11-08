@@ -105,6 +105,31 @@ export class Getta {
     this._streamReader = streamReader;
   }
 
+  get cache(): Cachemap | undefined {
+    return this._cache;
+  }
+
+  public createShortcut(name: string, path: string, { method, ...rest }: Required<RequestOptions, "method">) {
+    if (!FETCH_METHODS.includes(method)) {
+      throw new Error(`${INVALID_FETCH_METHOD} ${method}`);
+    }
+
+    // @ts-ignore
+    this[name] = async (...params: any[]) => {
+      let args: [string, RequestOptions?] | [string, BodyInit?, RequestOptions?];
+
+      if (method === GET_METHOD) {
+        args = [path, merge({}, rest, params[0]) as RequestOptions];
+      } else {
+        const [body, options = {}] = params as [BodyInit | undefined, RequestOptions];
+        args = [path, body, merge({}, rest, options)];
+      }
+
+      // @ts-ignore
+      return this[method](...args);
+    };
+  }
+
   public async delete(path: string, body?: BodyInit, options: RequestOptions = {}) {
     return this._request(path, body, { ...options, method: DELETE_METHOD });
   }
@@ -119,27 +144,6 @@ export class Getta {
 
   public async put(path: string, body?: BodyInit, options: RequestOptions = {}) {
     return this._request(path, body, { ...options, method: PUT_METHOD });
-  }
-
-  public shortcut(method: FetchMethod, name: string, baseOptions: RequestOptions = {}) {
-    if (!FETCH_METHODS.includes(method)) {
-      throw new Error(`${INVALID_FETCH_METHOD} ${method}`);
-    }
-
-    // @ts-ignore
-    this[name] = (path: string, ...rest: any[]) => {
-      let args: [string, RequestOptions?] | [string, BodyInit?, RequestOptions?];
-
-      if (method === GET_METHOD) {
-        args = [path, merge({}, baseOptions, rest) as RequestOptions];
-      } else {
-        const [body, options = {}] = rest as [BodyInit | undefined, RequestOptions];
-        args = [path, body, merge({}, baseOptions, options)];
-      }
-
-      // @ts-ignore
-      return this[method](...args);
-    };
   }
 
   private async _cacheEntryDelete(requestHash: string): Promise<boolean> {

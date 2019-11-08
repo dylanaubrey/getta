@@ -12,6 +12,7 @@
     "**/*.test.*"
   ],
   "include": [
-    "src"
+    "src/**/*",
+    "src/**/*.json"
   ]
 }

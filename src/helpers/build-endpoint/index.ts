@@ -9,7 +9,7 @@ export default function buildEndpoint(
   const pathJoiner = basePath.endsWith("/") || path.startsWith("/") ? "" : "/";
   let endpoint = `${basePath}${pathJoiner}${path}`;
 
-  if (queryParams) {
+  if (queryParams && Object.keys(queryParams).length) {
     const queryJoin = queryString.extract(endpoint) ? "&" : "?";
     endpoint = `${endpoint}${queryJoin}${queryString.stringify(queryParams)}`;
   }
