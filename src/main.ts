@@ -39,7 +39,6 @@ import isCacheabilityValid from "./helpers/is-cacheability-valid";
 import resolveResponseData from "./helpers/resolve-response-data";
 import {
   ConstructorOptions,
-  FetchMethod,
   FetchOptions,
   FetchRedirectHandlerOptions,
   FetchResult,

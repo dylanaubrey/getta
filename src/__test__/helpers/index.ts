@@ -12,6 +12,10 @@ export const defaultPath = "/direct/rest/content/catalog/{type}/{id,+}?format={b
 
 export const defaultPathTemplateData = { "brief|standard": "standard", "id,+": "136-7317", type: "product" };
 
+export const idPathTemplateData = { "id,+": "136-7317" };
+
+export const pathTemplateDataWithoutID = { "brief|standard": "standard", type: "product" };
+
 export const defaultHeaders = {
   "cache-control": "public, max-age=6000",
   "content-type": "application/json",

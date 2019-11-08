@@ -1,6 +1,14 @@
 import { FetchMockStatic } from "fetch-mock";
 import { PRD_136_7317 } from "./__test__/data";
-import { basePath, defaultPath, defaultPathTemplateData, getCache, mockGetRequest } from "./__test__/helpers";
+import {
+  basePath,
+  defaultPath,
+  defaultPathTemplateData,
+  getCache,
+  idPathTemplateData,
+  mockGetRequest,
+  pathTemplateDataWithoutID,
+} from "./__test__/helpers";
 import { GET_METHOD } from "./constants";
 import createRestClient, { Getta } from "./main";
 import { ShortcutProperties } from "./types";
@@ -19,7 +27,11 @@ describe("Getta", () => {
 
     beforeAll(async () => {
       restClient = createRestClient<"getProduct">({ basePath, cache: await getCache() });
-      restClient.createShortcut("getProduct", defaultPath, { method: GET_METHOD });
+
+      restClient.createShortcut("getProduct", defaultPath, {
+        method: GET_METHOD,
+        pathTemplateData: pathTemplateDataWithoutID,
+      });
     });
 
     describe("WHEN a resource is requested", () => {
@@ -44,12 +56,13 @@ describe("Getta", () => {
         fetchMock = mockGetRequest(defaultPath, PRD_136_7317.body, { pathTemplateData: defaultPathTemplateData });
       });
 
-      afterAll(() => {
+      afterAll(async () => {
         fetchMock.restore();
+        await restClient.cache.clear();
       });
 
       it("SHOULD return the correct response", async () => {
-        expect(await restClient.getProduct({ pathTemplateData: defaultPathTemplateData })).toEqual({
+        expect(await restClient.getProduct({ pathTemplateData: idPathTemplateData })).toEqual({
           data: PRD_136_7317.body,
         });
       });
