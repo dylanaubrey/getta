@@ -63,6 +63,7 @@ export const SERVER_ERROR_REPSONSE = "serverError" as const;
 export const NOT_MODIFIED_STATUS_CODE = 304 as const;
 export const NOT_FOUND_STATUS_CODE = 404 as const;
 
+export const ETAG_HEADER = "ETag" as const;
 export const LOCATION_HEADER = "Location" as const;
 export const IF_NONE_MATCH_HEADER = "If-None-Match" as const;
 export const CACHE_CONTROL_HEADER = "Cache-Control" as const;

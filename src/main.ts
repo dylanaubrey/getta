@@ -16,6 +16,7 @@ import {
   DEFAULT_PATH_TEMPLATE_REGEX,
   DEFAULT_REQUEST_RETRY_WAIT,
   DELETE_METHOD,
+  ETAG_HEADER,
   FETCH_METHODS,
   GET_METHOD,
   IF_NONE_MATCH_HEADER,
@@ -223,7 +224,7 @@ export class Getta {
         }
 
         resolve({
-          data: this._bodyParser(await res[this._streamReader]()),
+          data: res.body ? this._bodyParser(await res[this._streamReader]()) : undefined,
           headers,
           status,
         });
@@ -298,11 +299,18 @@ export class Getta {
       const cachedData = await this._cacheEntryGet(requestHash);
 
       if (cachedData) {
-        this._cacheEntrySet(requestHash, cachedData, { cacheControl: headers.get(CACHE_CONTROL_HEADER) || undefined });
+        this._cacheEntrySet(requestHash, cachedData, {
+          cacheControl: headers.get(CACHE_CONTROL_HEADER) || undefined,
+          etag: headers.get(ETAG_HEADER) || undefined,
+        });
+
         data = cachedData;
       }
     } else if (data && headers) {
-      this._cacheEntrySet(requestHash, data, { cacheControl: headers.get(CACHE_CONTROL_HEADER) || undefined });
+      this._cacheEntrySet(requestHash, data, {
+        cacheControl: headers.get(CACHE_CONTROL_HEADER) || undefined,
+        etag: headers.get(ETAG_HEADER) || undefined,
+      });
     }
 
     const responseData = resolveResponseData({ data, errors });

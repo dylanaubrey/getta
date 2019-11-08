@@ -1,6 +1,6 @@
 import Cachemap from "@cachemap/core";
 import map from "@cachemap/map";
-import fetchMock from "fetch-mock";
+import { FetchMockStatic, MockRequest } from "fetch-mock";
 import { JsonValue } from "type-fest";
 import { DEFAULT_PATH_TEMPLATE_CALLBACK, DEFAULT_PATH_TEMPLATE_REGEX } from "../../constants";
 import buildEndpoint from "../../helpers/build-endpoint";
@@ -16,10 +16,12 @@ export const idPathTemplateData = { "id,+": "136-7317" };
 
 export const pathTemplateDataWithoutID = { "brief|standard": "standard", type: "product" };
 
+export const defaultEtag = "33a64df551425fcc55e4d42a148795d9f25f89d4";
+
 export const defaultHeaders = {
   "cache-control": "public, max-age=6000",
   "content-type": "application/json",
-  etag: "33a64df551425fcc55e4d42a148795d9f25f89d4",
+  etag: defaultEtag,
 };
 
 export async function getCache() {
@@ -29,12 +31,13 @@ export async function getCache() {
   });
 }
 
-export function mockGetRequest(
+export function mockRequest(
   path: string,
   body: JsonValue,
   { headers = {}, pathTemplateData, queryParams }: RequestOptions = {},
+  callback: (endpoint: string, options: MockRequest) => void,
 ) {
-  return fetchMock.get(
+  callback(
     buildEndpoint(basePath, path, {
       pathTemplateCallback: DEFAULT_PATH_TEMPLATE_CALLBACK,
       pathTemplateData,
@@ -42,7 +45,7 @@ export function mockGetRequest(
       queryParams,
     }),
     {
-      body,
+      body: JSON.stringify(body),
       headers: { ...defaultHeaders, ...headers },
     },
   );
