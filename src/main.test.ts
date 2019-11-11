@@ -10,6 +10,7 @@ import {
   idPathTemplateData,
   mockRequest,
   pathTemplateDataWithoutID,
+  tearDownTest,
 } from "./__test__/helpers";
 import { GET_METHOD, IF_NONE_MATCH_HEADER } from "./constants";
 import delay from "./helpers/delay";
@@ -47,8 +48,7 @@ describe("Getta", () => {
       });
 
       afterAll(async () => {
-        fetchMock.restore();
-        await restClient.cache.clear();
+        await tearDownTest({ fetchMock, restClient });
       });
 
       it("SHOULD have made one request", () => {
@@ -72,8 +72,7 @@ describe("Getta", () => {
       });
 
       afterAll(async () => {
-        fetchMock.restore();
-        await restClient.cache.clear();
+        await tearDownTest({ fetchMock, restClient });
       });
 
       it("SHOULD have made one request", () => {
@@ -100,8 +99,7 @@ describe("Getta", () => {
         });
 
         afterAll(async () => {
-          fetchMock.restore();
-          await restClient.cache.clear();
+          await tearDownTest({ fetchMock, restClient });
         });
 
         it("SHOULD not have made a request", () => {
@@ -116,39 +114,71 @@ describe("Getta", () => {
       });
 
       describe("WHEN the cache entry is invalid", () => {
+        function matcher(url: string, { headers }: MockRequest) {
+          if (!headers) return false;
+          return headers[IF_NONE_MATCH_HEADER] === defaultEtag;
+        }
+
+        async function invalidCacheEntryTestSetup() {
+          mockRequest(
+            defaultPath,
+            PRD_136_7317.body,
+            { headers: { "cache-control": "public, max-age=1" }, pathTemplateData: defaultPathTemplateData },
+            (...args) => {
+              fetchMock.get(...args);
+            },
+          );
+
+          await restClient.getProduct({ pathTemplateData: idPathTemplateData });
+          await delay(1000);
+
+          fetchMock.restore();
+        }
+
         describe("WHEN the response returns not modified status code", () => {
           beforeAll(async () => {
-            mockRequest(
-              defaultPath,
-              PRD_136_7317.body,
-              { headers: { "cache-control": "public, max-age=1" }, pathTemplateData: defaultPathTemplateData },
-              (...args) => {
-                fetchMock.get(...args);
-              },
-            );
-
-            await restClient.getProduct({ pathTemplateData: idPathTemplateData });
-            await delay(1000);
-
-            fetchMock.restore();
-
-            function matcher(path: string) {
-              return (url: string, { headers }: MockRequest) => {
-                if (!headers) return false;
-                return headers[IF_NONE_MATCH_HEADER] === defaultEtag;
-              };
-            }
+            await invalidCacheEntryTestSetup();
 
             mockRequest(defaultPath, PRD_136_7317.body, { pathTemplateData: defaultPathTemplateData }, path => {
-              fetchMock.mock(matcher(path), { headers: defaultHeaders, status: 304 });
+              fetchMock.mock(matcher, { headers: defaultHeaders, status: 304 });
             });
 
             response = await restClient.getProduct({ pathTemplateData: idPathTemplateData });
           });
 
           afterAll(async () => {
-            fetchMock.restore();
-            await restClient.cache.clear();
+            await tearDownTest({ fetchMock, restClient });
+          });
+
+          it("SHOULD not have made a request", () => {
+            expect(fetchMock.calls().length).toBe(1);
+          });
+
+          it("SHOULD return the correct response", () => {
+            expect(response).toEqual({
+              data: PRD_136_7317.body,
+            });
+          });
+        });
+
+        describe("WHEN the response returns the resource", () => {
+          beforeAll(async () => {
+            await invalidCacheEntryTestSetup();
+
+            mockRequest(
+              defaultPath,
+              PRD_136_7317.body,
+              { pathTemplateData: defaultPathTemplateData },
+              (path, { body }) => {
+                fetchMock.mock(matcher, { body, headers: defaultHeaders, status: 200 });
+              },
+            );
+
+            response = await restClient.getProduct({ pathTemplateData: idPathTemplateData });
+          });
+
+          afterAll(async () => {
+            await tearDownTest({ fetchMock, restClient });
           });
 
           it("SHOULD not have made a request", () => {

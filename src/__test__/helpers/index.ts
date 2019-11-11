@@ -1,10 +1,11 @@
 import Cachemap from "@cachemap/core";
 import map from "@cachemap/map";
-import { FetchMockStatic, MockRequest } from "fetch-mock";
+import { MockRequest } from "fetch-mock";
 import { JsonValue } from "type-fest";
 import { DEFAULT_PATH_TEMPLATE_CALLBACK, DEFAULT_PATH_TEMPLATE_REGEX } from "../../constants";
 import buildEndpoint from "../../helpers/build-endpoint";
 import { RequestOptions } from "../../types";
+import { TearDownTestParams } from "../types";
 
 export const basePath = "https://tesco.com";
 
@@ -49,4 +50,9 @@ export function mockRequest(
       headers: { ...defaultHeaders, ...headers },
     },
   );
+}
+
+export async function tearDownTest({ fetchMock, restClient }: TearDownTestParams) {
+  fetchMock.restore();
+  await restClient.cache.clear();
 }
