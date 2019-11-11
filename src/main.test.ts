@@ -18,6 +18,7 @@ import {
   IF_NONE_MATCH_HEADER,
   LOCATION_HEADER,
   MAX_REDIRECTS_EXCEEDED_ERROR,
+  MAX_RETRIES_EXCEEDED_ERROR,
   RESOURCE_NOT_FOUND_ERROR,
 } from "./constants";
 import delay from "./helpers/delay";
@@ -34,7 +35,7 @@ describe("Getta", () => {
 
   describe("get method", () => {
     let restClient: Getta & ShortcutProperties<"getProduct">;
-    let response: ResponseDataWithErrors;
+    let response: ResponseDataWithErrors | ResponseDataWithErrors[];
 
     beforeAll(async () => {
       restClient = createRestClient<"getProduct">({ basePath, cache: await getCache() });
@@ -281,6 +282,78 @@ describe("Getta", () => {
         expect(response).toEqual({
           errors: [new Error(`${MAX_REDIRECTS_EXCEEDED_ERROR} 5.`)],
         });
+      });
+    });
+
+    describe("WHEN a request is retried more than three times", () => {
+      const RETRY_COOKIE_FLAG = "status=retry";
+
+      function matcher(url: string, { headers }: MockRequest) {
+        if (!headers) return false;
+        if (headers[COOKIE_HEADER] === RETRY_COOKIE_FLAG) return true;
+        return false;
+      }
+
+      beforeAll(async () => {
+        mockRequest(defaultPath, {}, { pathTemplateData: defaultPathTemplateData }, ({ body, headers }) => {
+          fetchMock.mock(matcher, { body, headers, status: 500 });
+        });
+
+        response = await restClient.getProduct({
+          headers: { [COOKIE_HEADER]: RETRY_COOKIE_FLAG },
+          pathTemplateData: idPathTemplateData,
+        });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made three requests", () => {
+        expect(fetchMock.calls().length).toBe(3);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          errors: [new Error(`${MAX_RETRIES_EXCEEDED_ERROR} 3.`)],
+        });
+      });
+    });
+
+    describe("WHEN the same resource is requested in quick succession", () => {
+      beforeAll(async () => {
+        mockRequest(
+          defaultPath,
+          PRD_136_7317.body,
+          { pathTemplateData: defaultPathTemplateData },
+          ({ endpoint, ...rest }) => {
+            fetchMock.get(endpoint, rest);
+          },
+        );
+
+        response = await Promise.all([
+          restClient.get(defaultPath, { pathTemplateData: defaultPathTemplateData }),
+          restClient.get(defaultPath, { pathTemplateData: defaultPathTemplateData }),
+        ]);
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made one request", () => {
+        expect(fetchMock.calls().length).toBe(1);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual([
+          {
+            data: PRD_136_7317.body,
+          },
+          {
+            data: PRD_136_7317.body,
+          },
+        ]);
       });
     });
   });
