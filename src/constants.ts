@@ -41,11 +41,13 @@ export const DEFAULT_PATH_TEMPLATE_CALLBACK = (
 export const MISSING_BASE_PATH_ERROR = `Getta expected to receive 'basePath' in the constructor options,
   but recevied undefined.`;
 
-export const MAX_REDIRECTS_EXCEEDED = "The request exceeded the maximum number of redirects, which is";
+export const MAX_REDIRECTS_EXCEEDED_ERROR = "The request exceeded the maximum number of redirects, which is";
 
-export const MAX_RETRIES_EXCEEDED = "The request exceeded the maximum number of retries, which is";
+export const MAX_RETRIES_EXCEEDED_ERROR = "The request exceeded the maximum number of retries, which is";
 
-export const INVALID_FETCH_METHOD = "Getta expected to receive 'get', 'post', 'put' or 'delete', but received";
+export const INVALID_FETCH_METHOD_ERROR = "Getta expected to receive 'get', 'post', 'put' or 'delete', but received";
+
+export const RESOURCE_NOT_FOUND_ERROR = "The requested resource could not been found.";
 
 export const GET_METHOD = "get" as const;
 export const POST_METHOD = "post" as const;
@@ -63,6 +65,7 @@ export const SERVER_ERROR_REPSONSE = "serverError" as const;
 export const NOT_MODIFIED_STATUS_CODE = 304 as const;
 export const NOT_FOUND_STATUS_CODE = 404 as const;
 
+export const COOKIE_HEADER = "Cookie" as const;
 export const ETAG_HEADER = "ETag" as const;
 export const LOCATION_HEADER = "Location" as const;
 export const IF_NONE_MATCH_HEADER = "If-None-Match" as const;

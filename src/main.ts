@@ -20,17 +20,18 @@ import {
   FETCH_METHODS,
   GET_METHOD,
   IF_NONE_MATCH_HEADER,
-  INVALID_FETCH_METHOD,
+  INVALID_FETCH_METHOD_ERROR,
   JSON_FORMAT,
   LOCATION_HEADER,
-  MAX_REDIRECTS_EXCEEDED,
-  MAX_RETRIES_EXCEEDED,
+  MAX_REDIRECTS_EXCEEDED_ERROR,
+  MAX_RETRIES_EXCEEDED_ERROR,
   MISSING_BASE_PATH_ERROR,
   NOT_FOUND_STATUS_CODE,
   NOT_MODIFIED_STATUS_CODE,
   POST_METHOD,
   PUT_METHOD,
   REDIRECTION_REPSONSE,
+  RESOURCE_NOT_FOUND_ERROR,
   SERVER_ERROR_REPSONSE,
 } from "./constants";
 import buildEndpoint from "./helpers/build-endpoint";
@@ -111,7 +112,7 @@ export class Getta {
 
   public createShortcut(name: string, path: string, { method, ...rest }: Required<RequestOptions, "method">) {
     if (!FETCH_METHODS.includes(method)) {
-      throw new Error(`${INVALID_FETCH_METHOD} ${method}`);
+      throw new Error(`${INVALID_FETCH_METHOD_ERROR} ${method}`);
     }
 
     // @ts-ignore
@@ -240,7 +241,7 @@ export class Getta {
   ): Promise<FetchResult> {
     if (redirects === this._maxRedirects) {
       return {
-        errors: [new Error(`${MAX_REDIRECTS_EXCEEDED} ${this._maxRedirects}.`)],
+        errors: [new Error(`${MAX_REDIRECTS_EXCEEDED_ERROR} ${this._maxRedirects}.`)],
       };
     }
 
@@ -252,7 +253,7 @@ export class Getta {
   private async _fetchRetryHandler(endpoint: string, { retries = 0, ...rest }: FetchOptions) {
     if (retries === this._maxRetries) {
       return {
-        errors: [new Error(`${MAX_RETRIES_EXCEEDED} ${this._maxRetries}.`)],
+        errors: [new Error(`${MAX_RETRIES_EXCEEDED_ERROR} ${this._maxRetries}.`)],
       };
     }
 
@@ -292,9 +293,10 @@ export class Getta {
     );
   }
 
-  private async _getResolve(requestHash: string, { data, errors, headers, status }: FetchResult) {
+  private async _getResolve(requestHash: string, { data, errors = [], headers, status }: FetchResult) {
     if (status === NOT_FOUND_STATUS_CODE) {
       this._cacheEntryDelete(requestHash);
+      errors.push(new Error(RESOURCE_NOT_FOUND_ERROR));
     } else if (status === NOT_MODIFIED_STATUS_CODE && headers) {
       const cachedData = await this._cacheEntryGet(requestHash);
 

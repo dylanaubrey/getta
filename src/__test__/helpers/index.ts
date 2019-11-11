@@ -5,7 +5,7 @@ import { JsonValue } from "type-fest";
 import { DEFAULT_PATH_TEMPLATE_CALLBACK, DEFAULT_PATH_TEMPLATE_REGEX } from "../../constants";
 import buildEndpoint from "../../helpers/build-endpoint";
 import { RequestOptions } from "../../types";
-import { TearDownTestParams } from "../types";
+import { MockRequestCallbackParams, TearDownTestParams } from "../types";
 
 export const basePath = "https://tesco.com";
 
@@ -36,20 +36,18 @@ export function mockRequest(
   path: string,
   body: JsonValue,
   { headers = {}, pathTemplateData, queryParams }: RequestOptions = {},
-  callback: (endpoint: string, options: MockRequest) => void,
+  callback: (options: MockRequestCallbackParams) => void,
 ) {
-  callback(
-    buildEndpoint(basePath, path, {
+  callback({
+    body: JSON.stringify(body),
+    endpoint: buildEndpoint(basePath, path, {
       pathTemplateCallback: DEFAULT_PATH_TEMPLATE_CALLBACK,
       pathTemplateData,
       pathTemplateRegExp: DEFAULT_PATH_TEMPLATE_REGEX,
       queryParams,
     }),
-    {
-      body: JSON.stringify(body),
-      headers: { ...defaultHeaders, ...headers },
-    },
-  );
+    headers: { ...defaultHeaders, ...headers },
+  });
 }
 
 export async function tearDownTest({ fetchMock, restClient }: TearDownTestParams) {

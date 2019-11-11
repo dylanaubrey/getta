@@ -12,7 +12,7 @@ import {
   pathTemplateDataWithoutID,
   tearDownTest,
 } from "./__test__/helpers";
-import { GET_METHOD, IF_NONE_MATCH_HEADER } from "./constants";
+import { COOKIE_HEADER, GET_METHOD, IF_NONE_MATCH_HEADER, RESOURCE_NOT_FOUND_ERROR } from "./constants";
 import delay from "./helpers/delay";
 import createRestClient, { Getta } from "./main";
 import { ResponseDataWithErrors, ShortcutProperties } from "./types";
@@ -40,9 +40,14 @@ describe("Getta", () => {
 
     describe("WHEN a resource is requested", () => {
       beforeAll(async () => {
-        mockRequest(defaultPath, PRD_136_7317.body, { pathTemplateData: defaultPathTemplateData }, (...args) => {
-          fetchMock.get(...args);
-        });
+        mockRequest(
+          defaultPath,
+          PRD_136_7317.body,
+          { pathTemplateData: defaultPathTemplateData },
+          ({ endpoint, ...rest }) => {
+            fetchMock.get(endpoint, rest);
+          },
+        );
 
         response = await restClient.get(defaultPath, { pathTemplateData: defaultPathTemplateData });
       });
@@ -64,9 +69,14 @@ describe("Getta", () => {
 
     describe("WHEN a resource is requested with a shortcut", () => {
       beforeAll(async () => {
-        mockRequest(defaultPath, PRD_136_7317.body, { pathTemplateData: defaultPathTemplateData }, (...args) => {
-          fetchMock.get(...args);
-        });
+        mockRequest(
+          defaultPath,
+          PRD_136_7317.body,
+          { pathTemplateData: defaultPathTemplateData },
+          ({ endpoint, ...rest }) => {
+            fetchMock.get(endpoint, rest);
+          },
+        );
 
         response = await restClient.getProduct({ pathTemplateData: idPathTemplateData });
       });
@@ -89,9 +99,14 @@ describe("Getta", () => {
     describe("WHEN a resource is in the cache", () => {
       describe("WHEN the cache entry is valid", () => {
         beforeAll(async () => {
-          mockRequest(defaultPath, PRD_136_7317.body, { pathTemplateData: defaultPathTemplateData }, (...args) => {
-            fetchMock.get(...args);
-          });
+          mockRequest(
+            defaultPath,
+            PRD_136_7317.body,
+            { pathTemplateData: defaultPathTemplateData },
+            ({ endpoint, ...rest }) => {
+              fetchMock.get(endpoint, rest);
+            },
+          );
 
           await restClient.getProduct({ pathTemplateData: idPathTemplateData });
           fetchMock.restore();
@@ -114,9 +129,13 @@ describe("Getta", () => {
       });
 
       describe("WHEN the cache entry is invalid", () => {
+        const NOT_FOUND_COOKIE_FLAG = "status=404";
+
         function matcher(url: string, { headers }: MockRequest) {
           if (!headers) return false;
-          return headers[IF_NONE_MATCH_HEADER] === defaultEtag;
+          if (headers[COOKIE_HEADER] === NOT_FOUND_COOKIE_FLAG) return true;
+          if (headers[IF_NONE_MATCH_HEADER] === defaultEtag) return true;
+          return false;
         }
 
         async function invalidCacheEntryTestSetup() {
@@ -124,8 +143,8 @@ describe("Getta", () => {
             defaultPath,
             PRD_136_7317.body,
             { headers: { "cache-control": "public, max-age=1" }, pathTemplateData: defaultPathTemplateData },
-            (...args) => {
-              fetchMock.get(...args);
+            ({ endpoint, ...rest }) => {
+              fetchMock.get(endpoint, rest);
             },
           );
 
@@ -169,8 +188,8 @@ describe("Getta", () => {
               defaultPath,
               PRD_136_7317.body,
               { pathTemplateData: defaultPathTemplateData },
-              (path, { body }) => {
-                fetchMock.mock(matcher, { body, headers: defaultHeaders, status: 200 });
+              ({ body, headers }) => {
+                fetchMock.mock(matcher, { body, headers, status: 200 });
               },
             );
 
@@ -188,6 +207,33 @@ describe("Getta", () => {
           it("SHOULD return the correct response", () => {
             expect(response).toEqual({
               data: PRD_136_7317.body,
+            });
+          });
+        });
+
+        describe("WHEN the response returns a 404", () => {
+          beforeAll(async () => {
+            await invalidCacheEntryTestSetup();
+
+            mockRequest(defaultPath, {}, { pathTemplateData: defaultPathTemplateData }, ({ body, headers }) => {
+              fetchMock.mock(matcher, { body, headers, status: 404 });
+            });
+
+            response = await restClient.getProduct({ pathTemplateData: idPathTemplateData });
+          });
+
+          afterAll(async () => {
+            await tearDownTest({ fetchMock, restClient });
+          });
+
+          it("SHOULD not have made a request", () => {
+            expect(fetchMock.calls().length).toBe(1);
+          });
+
+          it("SHOULD return the correct response", () => {
+            expect(response).toEqual({
+              data: {},
+              errors: [new Error(RESOURCE_NOT_FOUND_ERROR)],
             });
           });
         });
