@@ -12,7 +12,14 @@ import {
   pathTemplateDataWithoutID,
   tearDownTest,
 } from "./__test__/helpers";
-import { COOKIE_HEADER, GET_METHOD, IF_NONE_MATCH_HEADER, RESOURCE_NOT_FOUND_ERROR } from "./constants";
+import {
+  COOKIE_HEADER,
+  GET_METHOD,
+  IF_NONE_MATCH_HEADER,
+  LOCATION_HEADER,
+  MAX_REDIRECTS_EXCEEDED_ERROR,
+  RESOURCE_NOT_FOUND_ERROR,
+} from "./constants";
 import delay from "./helpers/delay";
 import createRestClient, { Getta } from "./main";
 import { ResponseDataWithErrors, ShortcutProperties } from "./types";
@@ -129,11 +136,8 @@ describe("Getta", () => {
       });
 
       describe("WHEN the cache entry is invalid", () => {
-        const NOT_FOUND_COOKIE_FLAG = "status=404";
-
         function matcher(url: string, { headers }: MockRequest) {
           if (!headers) return false;
-          if (headers[COOKIE_HEADER] === NOT_FOUND_COOKIE_FLAG) return true;
           if (headers[IF_NONE_MATCH_HEADER] === defaultEtag) return true;
           return false;
         }
@@ -169,7 +173,7 @@ describe("Getta", () => {
             await tearDownTest({ fetchMock, restClient });
           });
 
-          it("SHOULD not have made a request", () => {
+          it("SHOULD have made one request", () => {
             expect(fetchMock.calls().length).toBe(1);
           });
 
@@ -200,7 +204,7 @@ describe("Getta", () => {
             await tearDownTest({ fetchMock, restClient });
           });
 
-          it("SHOULD not have made a request", () => {
+          it("SHOULD have made one request", () => {
             expect(fetchMock.calls().length).toBe(1);
           });
 
@@ -226,7 +230,7 @@ describe("Getta", () => {
             await tearDownTest({ fetchMock, restClient });
           });
 
-          it("SHOULD not have made a request", () => {
+          it("SHOULD have made one request", () => {
             expect(fetchMock.calls().length).toBe(1);
           });
 
@@ -236,6 +240,46 @@ describe("Getta", () => {
               errors: [new Error(RESOURCE_NOT_FOUND_ERROR)],
             });
           });
+        });
+      });
+    });
+
+    describe("WHEN a request is redirected more than five times", () => {
+      const REDIRECT_COOKIE_FLAG = "status=redirect";
+
+      function matcher(url: string, { headers }: MockRequest) {
+        if (!headers) return false;
+        if (headers[COOKIE_HEADER] === REDIRECT_COOKIE_FLAG) return true;
+        return false;
+      }
+
+      beforeAll(async () => {
+        mockRequest(
+          defaultPath,
+          {},
+          { headers: { [LOCATION_HEADER]: basePath }, pathTemplateData: defaultPathTemplateData },
+          ({ body, headers }) => {
+            fetchMock.mock(matcher, { body, headers, status: 301 });
+          },
+        );
+
+        response = await restClient.getProduct({
+          headers: { [COOKIE_HEADER]: REDIRECT_COOKIE_FLAG },
+          pathTemplateData: idPathTemplateData,
+        });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made five requests", () => {
+        expect(fetchMock.calls().length).toBe(5);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          errors: [new Error(`${MAX_REDIRECTS_EXCEEDED_ERROR} 5.`)],
         });
       });
     });

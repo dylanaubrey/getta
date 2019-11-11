@@ -237,7 +237,7 @@ export class Getta {
 
   private async _fetchRedirectHandler(
     endpoint: string,
-    { method, redirects = 0, status, ...rest }: FetchRedirectHandlerOptions,
+    { method, redirects = 1, status, ...rest }: FetchRedirectHandlerOptions,
   ): Promise<FetchResult> {
     if (redirects === this._maxRedirects) {
       return {
@@ -250,7 +250,7 @@ export class Getta {
     return this._fetch(endpoint, { method: redirectMethod, redirects, ...rest });
   }
 
-  private async _fetchRetryHandler(endpoint: string, { retries = 0, ...rest }: FetchOptions) {
+  private async _fetchRetryHandler(endpoint: string, { retries = 1, ...rest }: FetchOptions) {
     if (retries === this._maxRetries) {
       return {
         errors: [new Error(`${MAX_RETRIES_EXCEEDED_ERROR} ${this._maxRetries}.`)],
