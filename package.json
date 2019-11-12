@@ -8,13 +8,13 @@
     "isomorphic",
     "rest"
   ],
-  "homepage": "https://github.com/dylanaubrey/getta",
+  "homepage": "https://github.com/badbatch/getta",
   "bugs": {
-    "url": "https://github.com/dylanaubrey/getta/issues"
+    "url": "https://github.com/badbatch/getta/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:dylanaubrey/getta.git"
+    "url": "git@github.com:badbatch/getta.git"
   },
   "license": "MIT",
   "author": "Dylan Aubrey <dylanaubrey@gmail.com>",
