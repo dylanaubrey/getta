@@ -6,7 +6,7 @@ export type FetchMethod = "get" | "post" | "put" | "delete";
 
 export type StreamReader = "arrayBuffer" | "blob" | "formData" | "json" | "text";
 
-export type ShortcutProperties<T extends string | number | symbol> = {
+export type ShortcutProperties<T extends string> = {
   [K in T]: (...args: any[]) => Promise<ResponseDataWithErrors>;
 };
 
@@ -27,6 +27,7 @@ export interface ConstructorOptions {
 }
 
 export interface RequestOptions {
+  body?: BodyInit;
   headers?: StringObjectMap;
   method?: FetchMethod;
   pathTemplateData?: StringObjectMap;

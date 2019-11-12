@@ -1,4 +1,5 @@
 import fetchMock, { MockRequest } from "fetch-mock";
+import md5 from "md5";
 import { PRD_136_7317 } from "./__test__/data";
 import {
   basePath,
@@ -6,6 +7,7 @@ import {
   defaultHeaders,
   defaultPath,
   defaultPathTemplateData,
+  defaultPayload,
   getCache,
   idPathTemplateData,
   mockRequest,
@@ -14,11 +16,13 @@ import {
 } from "./__test__/helpers";
 import {
   COOKIE_HEADER,
+  DELETE_METHOD,
   GET_METHOD,
   IF_NONE_MATCH_HEADER,
   LOCATION_HEADER,
   MAX_REDIRECTS_EXCEEDED_ERROR,
   MAX_RETRIES_EXCEEDED_ERROR,
+  POST_METHOD,
   RESOURCE_NOT_FOUND_ERROR,
 } from "./constants";
 import delay from "./helpers/delay";
@@ -138,9 +142,7 @@ describe("Getta", () => {
 
       describe("WHEN the cache entry is invalid", () => {
         function matcher(url: string, { headers }: MockRequest) {
-          if (!headers) return false;
-          if (headers[IF_NONE_MATCH_HEADER] === defaultEtag) return true;
-          return false;
+          return headers && headers[IF_NONE_MATCH_HEADER] === defaultEtag;
         }
 
         async function invalidCacheEntryTestSetup() {
@@ -163,9 +165,14 @@ describe("Getta", () => {
           beforeAll(async () => {
             await invalidCacheEntryTestSetup();
 
-            mockRequest(defaultPath, PRD_136_7317.body, { pathTemplateData: defaultPathTemplateData }, path => {
-              fetchMock.mock(matcher, { headers: defaultHeaders, status: 304 });
-            });
+            mockRequest(
+              defaultPath,
+              PRD_136_7317.body,
+              { pathTemplateData: defaultPathTemplateData },
+              ({ headers }) => {
+                fetchMock.mock(matcher, { headers, status: 304 });
+              },
+            );
 
             response = await restClient.getProduct({ pathTemplateData: idPathTemplateData });
           });
@@ -249,9 +256,7 @@ describe("Getta", () => {
       const REDIRECT_COOKIE_FLAG = "status=redirect";
 
       function matcher(url: string, { headers }: MockRequest) {
-        if (!headers) return false;
-        if (headers[COOKIE_HEADER] === REDIRECT_COOKIE_FLAG) return true;
-        return false;
+        return headers && headers[COOKIE_HEADER] === REDIRECT_COOKIE_FLAG;
       }
 
       beforeAll(async () => {
@@ -289,9 +294,7 @@ describe("Getta", () => {
       const RETRY_COOKIE_FLAG = "status=retry";
 
       function matcher(url: string, { headers }: MockRequest) {
-        if (!headers) return false;
-        if (headers[COOKIE_HEADER] === RETRY_COOKIE_FLAG) return true;
-        return false;
+        return headers && headers[COOKIE_HEADER] === RETRY_COOKIE_FLAG;
       }
 
       beforeAll(async () => {
@@ -354,6 +357,182 @@ describe("Getta", () => {
             data: PRD_136_7317.body,
           },
         ]);
+      });
+    });
+
+    describe("WHEN a request times out", () => {
+      // TODO
+    });
+  });
+
+  describe("post method", () => {
+    let restClient: Getta & ShortcutProperties<"postProduct">;
+    let response: ResponseDataWithErrors | ResponseDataWithErrors[];
+
+    beforeAll(async () => {
+      restClient = createRestClient<"postProduct">({ basePath, cache: await getCache() });
+
+      restClient.createShortcut("postProduct", defaultPath, {
+        method: POST_METHOD,
+        pathTemplateData: pathTemplateDataWithoutID,
+      });
+    });
+
+    describe("WHEN a resource is requested", () => {
+      beforeAll(async () => {
+        mockRequest(
+          defaultPath,
+          PRD_136_7317.body,
+          { pathTemplateData: defaultPathTemplateData },
+          ({ endpoint, ...rest }) => {
+            fetchMock.post(endpoint, rest);
+          },
+        );
+
+        response = await restClient.post(defaultPath, {
+          body: defaultPayload,
+          pathTemplateData: defaultPathTemplateData,
+        });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made one request", () => {
+        expect(fetchMock.calls().length).toBe(1);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          data: PRD_136_7317.body,
+        });
+      });
+    });
+
+    describe("WHEN a resource is requested with a shortcut", () => {
+      beforeAll(async () => {
+        mockRequest(
+          defaultPath,
+          PRD_136_7317.body,
+          { pathTemplateData: defaultPathTemplateData },
+          ({ endpoint, ...rest }) => {
+            fetchMock.post(endpoint, rest);
+          },
+        );
+
+        response = await restClient.postProduct({ body: defaultPayload, pathTemplateData: idPathTemplateData });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made one request", () => {
+        expect(fetchMock.calls().length).toBe(1);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          data: PRD_136_7317.body,
+        });
+      });
+    });
+  });
+
+  describe("delete method", () => {
+    let restClient: Getta & ShortcutProperties<"deleteProduct">;
+    let response: ResponseDataWithErrors | ResponseDataWithErrors[];
+    let requestHash: string;
+
+    beforeAll(async () => {
+      restClient = createRestClient<"deleteProduct">({ basePath, cache: await getCache() });
+
+      restClient.createShortcut("deleteProduct", defaultPath, {
+        method: DELETE_METHOD,
+        pathTemplateData: pathTemplateDataWithoutID,
+      });
+    });
+
+    describe("WHEN a resource is requested to be deleted", () => {
+      beforeAll(async () => {
+        mockRequest(
+          defaultPath,
+          PRD_136_7317.body,
+          { pathTemplateData: defaultPathTemplateData },
+          ({ endpoint, ...rest }) => {
+            requestHash = md5(endpoint);
+            fetchMock.get(endpoint, rest);
+          },
+        );
+
+        response = await restClient.get(defaultPath, { pathTemplateData: defaultPathTemplateData });
+        fetchMock.restore();
+
+        mockRequest(defaultPath, {}, { pathTemplateData: defaultPathTemplateData }, ({ endpoint, ...rest }) => {
+          fetchMock.delete(endpoint, rest);
+        });
+
+        response = await restClient.delete(defaultPath, { pathTemplateData: defaultPathTemplateData });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made one request", () => {
+        expect(fetchMock.calls().length).toBe(1);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          data: {},
+        });
+      });
+
+      it("SHOULD delete any matching cache entry", async () => {
+        expect(await restClient.cache.has(requestHash)).toBe(false);
+      });
+    });
+
+    describe("WHEN a resource is requested to be deleted with a shortcut", () => {
+      beforeAll(async () => {
+        mockRequest(
+          defaultPath,
+          PRD_136_7317.body,
+          { pathTemplateData: defaultPathTemplateData },
+          ({ endpoint, ...rest }) => {
+            requestHash = md5(endpoint);
+            fetchMock.get(endpoint, rest);
+          },
+        );
+
+        response = await restClient.get(defaultPath, { pathTemplateData: defaultPathTemplateData });
+        fetchMock.restore();
+
+        mockRequest(defaultPath, {}, { pathTemplateData: defaultPathTemplateData }, ({ endpoint, ...rest }) => {
+          fetchMock.delete(endpoint, rest);
+        });
+
+        response = await restClient.deleteProduct({ pathTemplateData: idPathTemplateData });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made one request", () => {
+        expect(fetchMock.calls().length).toBe(1);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          data: {},
+        });
+      });
+
+      it("SHOULD delete any matching cache entry", async () => {
+        expect(await restClient.cache.has(requestHash)).toBe(false);
       });
     });
   });

@@ -49,6 +49,8 @@ export const INVALID_FETCH_METHOD_ERROR = "Getta expected to receive 'get', 'pos
 
 export const RESOURCE_NOT_FOUND_ERROR = "The requested resource could not been found.";
 
+export const FETCH_TIMEOUT_ERROR = "The request timed out. Getta did not get a response within";
+
 export const GET_METHOD = "get" as const;
 export const POST_METHOD = "post" as const;
 export const PUT_METHOD = "put" as const;

@@ -13,6 +13,8 @@ export const defaultPath = "/direct/rest/content/catalog/{type}/{id,+}?format={b
 
 export const defaultPathTemplateData = { "brief|standard": "standard", "id,+": "136-7317", type: "product" };
 
+export const defaultPayload = "{ payload: true }";
+
 export const idPathTemplateData = { "id,+": "136-7317" };
 
 export const pathTemplateDataWithoutID = { "brief|standard": "standard", type: "product" };

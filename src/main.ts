@@ -18,6 +18,7 @@ import {
   DELETE_METHOD,
   ETAG_HEADER,
   FETCH_METHODS,
+  FETCH_TIMEOUT_ERROR,
   GET_METHOD,
   IF_NONE_MATCH_HEADER,
   INVALID_FETCH_METHOD_ERROR,
@@ -116,35 +117,23 @@ export class Getta {
     }
 
     // @ts-ignore
-    this[name] = async (...params: any[]) => {
-      let args: [string, RequestOptions?] | [string, BodyInit?, RequestOptions?];
-
-      if (method === GET_METHOD) {
-        args = [path, merge({}, rest, params[0]) as RequestOptions];
-      } else {
-        const [body, options = {}] = params as [BodyInit | undefined, RequestOptions];
-        args = [path, body, merge({}, rest, options)];
-      }
-
-      // @ts-ignore
-      return this[method](...args);
-    };
+    this[name] = async (options: RequestOptions = {}) => this[method](path, merge({}, rest, options));
   }
 
-  public async delete(path: string, body?: BodyInit, options: RequestOptions = {}) {
-    return this._request(path, body, { ...options, method: DELETE_METHOD });
+  public async delete(path: string, options: RequestOptions = {}) {
+    return this._delete(path, options);
   }
 
   public async get(path: string, options: RequestOptions = {}) {
     return this._get(path, options);
   }
 
-  public async post(path: string, body: BodyInit, options: RequestOptions = {}) {
-    return this._request(path, body, { ...options, method: POST_METHOD });
+  public async post(path: string, options: Required<RequestOptions, "body">) {
+    return this._request(path, { ...options, method: POST_METHOD });
   }
 
-  public async put(path: string, body?: BodyInit, options: RequestOptions = {}) {
-    return this._request(path, body, { ...options, method: PUT_METHOD });
+  public async put(path: string, options: Required<RequestOptions, "body">) {
+    return this._request(path, { ...options, method: PUT_METHOD });
   }
 
   private async _cacheEntryDelete(requestHash: string): Promise<boolean> {
@@ -191,11 +180,35 @@ export class Getta {
     }
   }
 
+  private async _delete(path: string, { headers = {}, pathTemplateData, queryParams = {}, ...rest }: RequestOptions) {
+    const endpoint = buildEndpoint(this._basePath, path, {
+      pathTemplateCallback: this._pathTemplateCallback,
+      pathTemplateData,
+      pathTemplateRegExp: this._pathTemplateRegExp,
+      queryParams: { ...this._queryParams, ...queryParams },
+    });
+
+    const requestHash = md5(endpoint);
+    const cacheability = await this._cacheEntryHas(requestHash);
+
+    if (cacheability) {
+      this._cacheEntryDelete(requestHash);
+    }
+
+    const { data, errors } = await this._fetch(endpoint, {
+      headers: { ...this._headers, ...headers },
+      method: DELETE_METHOD,
+      ...rest,
+    });
+
+    return resolveResponseData({ data, errors });
+  }
+
   private async _fetch(endpoint: string, { redirects, retries, ...rest }: FetchOptions): Promise<FetchResult> {
     try {
       return new Promise(async (resolve: (value: FetchResult) => void, reject) => {
         const fetchTimer = setTimeout(() => {
-          reject(new Error());
+          reject(new Error(`${FETCH_TIMEOUT_ERROR} ${this._fetchTimeout}ms.`));
         }, this._fetchTimeout);
 
         const res = await fetch(endpoint, rest);
@@ -323,8 +336,7 @@ export class Getta {
 
   private async _request(
     path: string,
-    body: BodyInit | undefined,
-    { headers, method, pathTemplateData, queryParams, ...rest }: Required<RequestOptions, "method">,
+    { body, headers, method, pathTemplateData, queryParams, ...rest }: Required<RequestOptions, "method">,
   ) {
     const endpoint = buildEndpoint(this._basePath, path, {
       pathTemplateCallback: this._pathTemplateCallback,
@@ -372,6 +384,6 @@ export class Getta {
   }
 }
 
-export default function createRestClient<T extends string | number | symbol>(options: ConstructorOptions) {
+export default function createRestClient<T extends string>(options: ConstructorOptions) {
   return new Getta(options) as Getta & ShortcutProperties<T>;
 }
