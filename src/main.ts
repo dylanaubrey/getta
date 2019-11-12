@@ -1,7 +1,7 @@
 import Cachemap, { coreDefs } from "@cachemap/core";
 import { Func, ObjectMap, StringObjectMap } from "@repodog/types";
 import Cacheability from "cacheability";
-import { get, merge } from "lodash";
+import { merge } from "lodash";
 import md5 from "md5";
 import { JsonValue } from "type-fest";
 import { Required } from "utility-types";
@@ -293,7 +293,7 @@ export class Getta {
       }
 
       if (this._conditionalRequestsEnabled) {
-        const etag = get(cacheability, ["metadata", "etag"], null);
+        const etag = cacheability?.metadata?.etag ?? null;
         if (etag) headers[IF_NONE_MATCH_HEADER] = etag;
       }
     }

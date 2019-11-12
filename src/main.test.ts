@@ -1,10 +1,10 @@
+import { StringObjectMap } from "@repodog/types";
 import fetchMock, { MockRequest } from "fetch-mock";
 import md5 from "md5";
 import { PRD_136_7317 } from "./__test__/data";
 import {
   basePath,
   defaultEtag,
-  defaultHeaders,
   defaultPath,
   defaultPathTemplateData,
   defaultPayload,
@@ -23,6 +23,7 @@ import {
   MAX_REDIRECTS_EXCEEDED_ERROR,
   MAX_RETRIES_EXCEEDED_ERROR,
   POST_METHOD,
+  PUT_METHOD,
   RESOURCE_NOT_FOUND_ERROR,
 } from "./constants";
 import delay from "./helpers/delay";
@@ -148,7 +149,7 @@ describe("Getta", () => {
 
       describe("WHEN the cache entry is invalid", () => {
         function matcher(url: string, { headers }: MockRequest) {
-          return headers && headers[IF_NONE_MATCH_HEADER] === defaultEtag;
+          return !!headers && (headers as StringObjectMap)[IF_NONE_MATCH_HEADER] === defaultEtag;
         }
 
         async function invalidCacheEntryTestSetup() {
@@ -262,7 +263,7 @@ describe("Getta", () => {
       const REDIRECT_COOKIE_FLAG = "status=redirect";
 
       function matcher(url: string, { headers }: MockRequest) {
-        return headers && headers[COOKIE_HEADER] === REDIRECT_COOKIE_FLAG;
+        return !!headers && (headers as StringObjectMap)[COOKIE_HEADER] === REDIRECT_COOKIE_FLAG;
       }
 
       beforeAll(async () => {
@@ -300,7 +301,7 @@ describe("Getta", () => {
       const RETRY_COOKIE_FLAG = "status=retry";
 
       function matcher(url: string, { headers }: MockRequest) {
-        return headers && headers[COOKIE_HEADER] === RETRY_COOKIE_FLAG;
+        return !!headers && (headers as StringObjectMap)[COOKIE_HEADER] === RETRY_COOKIE_FLAG;
       }
 
       beforeAll(async () => {
@@ -509,7 +510,7 @@ describe("Getta", () => {
       });
 
       it("SHOULD delete any matching cache entry", async () => {
-        expect(await restClient.cache.has(requestHash)).toBe(false);
+        expect(await restClient?.cache?.has(requestHash)).toBe(false);
       });
     });
 
@@ -550,12 +551,79 @@ describe("Getta", () => {
       });
 
       it("SHOULD delete any matching cache entry", async () => {
-        expect(await restClient.cache.has(requestHash)).toBe(false);
+        expect(await restClient?.cache?.has(requestHash)).toBe(false);
       });
     });
   });
 
   describe("put method", () => {
-    // TODO
+    let restClient: Getta & ShortcutProperties<"putProduct">;
+    let response: ResponseDataWithErrors | ResponseDataWithErrors[];
+
+    beforeAll(async () => {
+      restClient = createRestClient<"putProduct">(
+        { basePath, cache: await getCache() },
+        {
+          putProduct: [
+            defaultPath,
+            {
+              method: PUT_METHOD,
+              pathTemplateData: pathTemplateDataWithoutID,
+            },
+          ],
+        },
+      );
+    });
+
+    describe("WHEN a resource is send", () => {
+      beforeAll(async () => {
+        mockRequest(defaultPath, {}, { pathTemplateData: defaultPathTemplateData }, ({ endpoint, ...rest }) => {
+          fetchMock.put(endpoint, rest);
+        });
+
+        response = await restClient.put(defaultPath, {
+          body: defaultPayload,
+          pathTemplateData: defaultPathTemplateData,
+        });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made one request", () => {
+        expect(fetchMock.calls().length).toBe(1);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          data: {},
+        });
+      });
+    });
+
+    describe("WHEN a resource is sent with a shortcut", () => {
+      beforeAll(async () => {
+        mockRequest(defaultPath, {}, { pathTemplateData: defaultPathTemplateData }, ({ endpoint, ...rest }) => {
+          fetchMock.put(endpoint, rest);
+        });
+
+        response = await restClient.putProduct({ body: defaultPayload, pathTemplateData: idPathTemplateData });
+      });
+
+      afterAll(async () => {
+        await tearDownTest({ fetchMock, restClient });
+      });
+
+      it("SHOULD have made one request", () => {
+        expect(fetchMock.calls().length).toBe(1);
+      });
+
+      it("SHOULD return the correct response", () => {
+        expect(response).toEqual({
+          data: {},
+        });
+      });
+    });
   });
 });

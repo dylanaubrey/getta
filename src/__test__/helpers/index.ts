@@ -1,6 +1,5 @@
 import Cachemap from "@cachemap/core";
 import map from "@cachemap/map";
-import { MockRequest } from "fetch-mock";
 import { JsonValue } from "type-fest";
 import { DEFAULT_PATH_TEMPLATE_CALLBACK, DEFAULT_PATH_TEMPLATE_REGEX } from "../../constants";
 import buildEndpoint from "../../helpers/build-endpoint";
@@ -54,5 +53,5 @@ export function mockRequest(
 
 export async function tearDownTest({ fetchMock, restClient }: TearDownTestParams) {
   fetchMock.restore();
-  await restClient.cache.clear();
+  await restClient?.cache?.clear();
 }
