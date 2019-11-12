@@ -24,7 +24,7 @@
 
 • **body**? : *BodyInit*
 
-*Defined in [types.ts:31](https://github.com/dylanaubrey/getta/blob/add5025/src/types.ts#L31)*
+*Defined in [types.ts:31](https://github.com/dylanaubrey/getta/blob/5fa0964/src/types.ts#L31)*
 
 ___
 
@@ -32,7 +32,7 @@ ___
 
 • **headers**: *StringObjectMap*
 
-*Defined in [types.ts:32](https://github.com/dylanaubrey/getta/blob/add5025/src/types.ts#L32)*
+*Defined in [types.ts:32](https://github.com/dylanaubrey/getta/blob/5fa0964/src/types.ts#L32)*
 
 ___
 
@@ -40,7 +40,7 @@ ___
 
 • **method**: *[FetchMethod](../README.md#fetchmethod)*
 
-*Defined in [types.ts:33](https://github.com/dylanaubrey/getta/blob/add5025/src/types.ts#L33)*
+*Defined in [types.ts:33](https://github.com/dylanaubrey/getta/blob/5fa0964/src/types.ts#L33)*
 
 ___
 
@@ -48,7 +48,7 @@ ___
 
 • **redirects**? : *undefined | number*
 
-*Defined in [types.ts:34](https://github.com/dylanaubrey/getta/blob/add5025/src/types.ts#L34)*
+*Defined in [types.ts:34](https://github.com/dylanaubrey/getta/blob/5fa0964/src/types.ts#L34)*
 
 ___
 
@@ -56,4 +56,4 @@ ___
 
 • **retries**? : *undefined | number*
 
-*Defined in [types.ts:35](https://github.com/dylanaubrey/getta/blob/add5025/src/types.ts#L35)*
+*Defined in [types.ts:35](https://github.com/dylanaubrey/getta/blob/5fa0964/src/types.ts#L35)*

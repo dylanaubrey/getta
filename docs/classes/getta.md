@@ -30,7 +30,7 @@
 
 \+ **new Getta**(`options`: [ConstructorOptions](../interfaces/constructoroptions.md)): *[Getta](getta.md)*
 
-*Defined in [main.ts:73](https://github.com/dylanaubrey/getta/blob/add5025/src/main.ts#L73)*
+*Defined in [main.ts:73](https://github.com/dylanaubrey/getta/blob/5fa0964/src/main.ts#L73)*
 
 **Parameters:**
 
@@ -46,7 +46,7 @@ Name | Type |
 
 • **get cache**(): *Cachemap | undefined*
 
-*Defined in [main.ts:111](https://github.com/dylanaubrey/getta/blob/add5025/src/main.ts#L111)*
+*Defined in [main.ts:111](https://github.com/dylanaubrey/getta/blob/5fa0964/src/main.ts#L111)*
 
 **Returns:** *Cachemap | undefined*
 
@@ -56,7 +56,7 @@ Name | Type |
 
 ▸ **createShortcut**(`name`: string, `path`: string, `__namedParameters`: object): *void*
 
-*Defined in [main.ts:115](https://github.com/dylanaubrey/getta/blob/add5025/src/main.ts#L115)*
+*Defined in [main.ts:115](https://github.com/dylanaubrey/getta/blob/5fa0964/src/main.ts#L115)*
 
 **Parameters:**
 
@@ -79,7 +79,7 @@ ___
 
 ▸ **delete**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [main.ts:124](https://github.com/dylanaubrey/getta/blob/add5025/src/main.ts#L124)*
+*Defined in [main.ts:124](https://github.com/dylanaubrey/getta/blob/5fa0964/src/main.ts#L124)*
 
 **Parameters:**
 
@@ -96,7 +96,7 @@ ___
 
 ▸ **get**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [main.ts:128](https://github.com/dylanaubrey/getta/blob/add5025/src/main.ts#L128)*
+*Defined in [main.ts:128](https://github.com/dylanaubrey/getta/blob/5fa0964/src/main.ts#L128)*
 
 **Parameters:**
 
@@ -113,7 +113,7 @@ ___
 
 ▸ **post**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [main.ts:132](https://github.com/dylanaubrey/getta/blob/add5025/src/main.ts#L132)*
+*Defined in [main.ts:132](https://github.com/dylanaubrey/getta/blob/5fa0964/src/main.ts#L132)*
 
 **Parameters:**
 
@@ -130,7 +130,7 @@ ___
 
 ▸ **put**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [main.ts:136](https://github.com/dylanaubrey/getta/blob/add5025/src/main.ts#L136)*
+*Defined in [main.ts:136](https://github.com/dylanaubrey/getta/blob/5fa0964/src/main.ts#L136)*
 
 **Parameters:**
 

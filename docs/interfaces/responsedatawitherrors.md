@@ -25,7 +25,7 @@
 
 *Inherited from [ResponseData](responsedata.md).[data](responsedata.md#optional-data)*
 
-*Defined in [types.ts:56](https://github.com/dylanaubrey/getta/blob/add5025/src/types.ts#L56)*
+*Defined in [types.ts:56](https://github.com/dylanaubrey/getta/blob/5fa0964/src/types.ts#L56)*
 
 ___
 
@@ -33,4 +33,4 @@ ___
 
 • **errors**? : *Error[]*
 
-*Defined in [types.ts:60](https://github.com/dylanaubrey/getta/blob/add5025/src/types.ts#L60)*
+*Defined in [types.ts:60](https://github.com/dylanaubrey/getta/blob/5fa0964/src/types.ts#L60)*
