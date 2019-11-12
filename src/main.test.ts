@@ -42,12 +42,18 @@ describe("Getta", () => {
     let response: ResponseDataWithErrors | ResponseDataWithErrors[];
 
     beforeAll(async () => {
-      restClient = createRestClient<"getProduct">({ basePath, cache: await getCache() });
-
-      restClient.createShortcut("getProduct", defaultPath, {
-        method: GET_METHOD,
-        pathTemplateData: pathTemplateDataWithoutID,
-      });
+      restClient = createRestClient<"getProduct">(
+        { basePath, cache: await getCache() },
+        {
+          getProduct: [
+            defaultPath,
+            {
+              method: GET_METHOD,
+              pathTemplateData: pathTemplateDataWithoutID,
+            },
+          ],
+        },
+      );
     });
 
     describe("WHEN a resource is requested", () => {
@@ -370,12 +376,18 @@ describe("Getta", () => {
     let response: ResponseDataWithErrors | ResponseDataWithErrors[];
 
     beforeAll(async () => {
-      restClient = createRestClient<"postProduct">({ basePath, cache: await getCache() });
-
-      restClient.createShortcut("postProduct", defaultPath, {
-        method: POST_METHOD,
-        pathTemplateData: pathTemplateDataWithoutID,
-      });
+      restClient = createRestClient<"postProduct">(
+        { basePath, cache: await getCache() },
+        {
+          postProduct: [
+            defaultPath,
+            {
+              method: POST_METHOD,
+              pathTemplateData: pathTemplateDataWithoutID,
+            },
+          ],
+        },
+      );
     });
 
     describe("WHEN a resource is requested", () => {
@@ -446,12 +458,18 @@ describe("Getta", () => {
     let requestHash: string;
 
     beforeAll(async () => {
-      restClient = createRestClient<"deleteProduct">({ basePath, cache: await getCache() });
-
-      restClient.createShortcut("deleteProduct", defaultPath, {
-        method: DELETE_METHOD,
-        pathTemplateData: pathTemplateDataWithoutID,
-      });
+      restClient = createRestClient<"deleteProduct">(
+        { basePath, cache: await getCache() },
+        {
+          deleteProduct: [
+            defaultPath,
+            {
+              method: DELETE_METHOD,
+              pathTemplateData: pathTemplateDataWithoutID,
+            },
+          ],
+        },
+      );
     });
 
     describe("WHEN a resource is requested to be deleted", () => {
@@ -535,5 +553,9 @@ describe("Getta", () => {
         expect(await restClient.cache.has(requestHash)).toBe(false);
       });
     });
+  });
+
+  describe("put method", () => {
+    // TODO
   });
 });

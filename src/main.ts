@@ -52,6 +52,7 @@ import {
   RequestTracker,
   ResponseDataWithErrors,
   ShortcutProperties,
+  Shortcuts,
   StreamReader,
 } from "./types";
 
@@ -384,6 +385,13 @@ export class Getta {
   }
 }
 
-export default function createRestClient<T extends string>(options: ConstructorOptions) {
-  return new Getta(options) as Getta & ShortcutProperties<T>;
+export default function createRestClient<N extends string>(options: ConstructorOptions, shortcuts?: Shortcuts) {
+  const getta = new Getta(options) as Getta & ShortcutProperties<N>;
+  if (!shortcuts) return getta;
+
+  Object.keys(shortcuts).forEach(key => {
+    getta.createShortcut(key, ...shortcuts[key]);
+  });
+
+  return getta;
 }

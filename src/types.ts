@@ -1,12 +1,13 @@
 import Cachemap from "@cachemap/core";
 import { Func, StringObjectMap } from "@repodog/types";
 import { JsonObject, JsonValue } from "type-fest";
+import { Required } from "utility-types";
 
 export type FetchMethod = "get" | "post" | "put" | "delete";
 
 export type StreamReader = "arrayBuffer" | "blob" | "formData" | "json" | "text";
 
-export type ShortcutProperties<T extends string> = {
+export type ShortcutProperties<T extends string | number> = {
   [K in T]: (...args: any[]) => Promise<ResponseDataWithErrors>;
 };
 
@@ -24,6 +25,23 @@ export interface ConstructorOptions {
   queryParams?: JsonObject;
   requestRetryWait?: number;
   streamReader?: StreamReader;
+}
+
+export interface FetchOptions {
+  body?: BodyInit;
+  headers: StringObjectMap;
+  method: FetchMethod;
+  redirects?: number;
+  retries?: number;
+}
+
+export interface FetchResult extends ResponseDataWithErrors {
+  headers?: Headers;
+  status?: number;
+}
+
+export interface FetchRedirectHandlerOptions extends FetchOptions {
+  status: number;
 }
 
 export interface RequestOptions {
@@ -55,19 +73,6 @@ export interface RequestTracker {
   pending: Map<string, PendingRequestResolvers[]>;
 }
 
-export interface FetchOptions {
-  body?: BodyInit;
-  headers: StringObjectMap;
-  method: FetchMethod;
-  redirects?: number;
-  retries?: number;
-}
-
-export interface FetchResult extends ResponseDataWithErrors {
-  headers?: Headers;
-  status?: number;
-}
-
-export interface FetchRedirectHandlerOptions extends FetchOptions {
-  status: number;
+export interface Shortcuts {
+  [key: string]: [string, Required<RequestOptions, "method">];
 }
