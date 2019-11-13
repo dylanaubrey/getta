@@ -19,7 +19,7 @@ The library depends on isomorphic-fetch, so this will also need to be installed 
 along with core-js, @babel/runtime and lodash.
 
 ```shell
-yarn add isomorphic-fetch core-js @babel/runtime lodash --dev
+yarn add isomorphic-fetch core-js @babel/runtime lodash
 ```
 
 ## Changelog
