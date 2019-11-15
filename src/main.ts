@@ -1,4 +1,4 @@
-import Cachemap, { coreDefs } from "@cachemap/core";
+import Cachemap, { CacheHeaders } from "@cachemap/core";
 import { Func, ObjectMap, StringObjectMap } from "@repodog/types";
 import Cacheability from "cacheability";
 import { merge } from "lodash";
@@ -167,11 +167,7 @@ export class Getta {
     }
   }
 
-  private async _cacheEntrySet(
-    requestHash: string,
-    data: JsonValue,
-    cacheHeaders: coreDefs.CacheHeaders,
-  ): Promise<void> {
+  private async _cacheEntrySet(requestHash: string, data: JsonValue, cacheHeaders: CacheHeaders): Promise<void> {
     if (!this._cache) return undefined;
 
     try {

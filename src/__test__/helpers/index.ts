@@ -26,8 +26,8 @@ export const defaultHeaders = {
   etag: defaultEtag,
 };
 
-export async function getCache() {
-  return Cachemap.init({
+export function getCache() {
+  return new Cachemap({
     name: "cachemap",
     store: map(),
   });

@@ -32,8 +32,8 @@ import { ResponseDataWithErrors, ShortcutProperties } from "./types";
 
 describe("Getta", () => {
   describe("constructor", () => {
-    it("SHOULD return an instance of the Getta class", async () => {
-      const restClient = createRestClient({ basePath, cache: await getCache() });
+    it("SHOULD return an instance of the Getta class", () => {
+      const restClient = createRestClient({ basePath, cache: getCache() });
       expect(restClient).toBeInstanceOf(Getta);
     });
   });
@@ -42,9 +42,9 @@ describe("Getta", () => {
     let restClient: Getta & ShortcutProperties<"getProduct">;
     let response: ResponseDataWithErrors | ResponseDataWithErrors[];
 
-    beforeAll(async () => {
+    beforeAll(() => {
       restClient = createRestClient<"getProduct">(
-        { basePath, cache: await getCache() },
+        { basePath, cache: getCache() },
         {
           getProduct: [
             defaultPath,
@@ -376,9 +376,9 @@ describe("Getta", () => {
     let restClient: Getta & ShortcutProperties<"postProduct">;
     let response: ResponseDataWithErrors | ResponseDataWithErrors[];
 
-    beforeAll(async () => {
+    beforeAll(() => {
       restClient = createRestClient<"postProduct">(
-        { basePath, cache: await getCache() },
+        { basePath, cache: getCache() },
         {
           postProduct: [
             defaultPath,
@@ -458,9 +458,9 @@ describe("Getta", () => {
     let response: ResponseDataWithErrors | ResponseDataWithErrors[];
     let requestHash: string;
 
-    beforeAll(async () => {
+    beforeAll(() => {
       restClient = createRestClient<"deleteProduct">(
-        { basePath, cache: await getCache() },
+        { basePath, cache: getCache() },
         {
           deleteProduct: [
             defaultPath,
@@ -560,9 +560,9 @@ describe("Getta", () => {
     let restClient: Getta & ShortcutProperties<"putProduct">;
     let response: ResponseDataWithErrors | ResponseDataWithErrors[];
 
-    beforeAll(async () => {
+    beforeAll(() => {
       restClient = createRestClient<"putProduct">(
-        { basePath, cache: await getCache() },
+        { basePath, cache: getCache() },
         {
           putProduct: [
             defaultPath,
