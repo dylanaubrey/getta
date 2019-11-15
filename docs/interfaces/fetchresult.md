@@ -25,7 +25,7 @@
 
 *Inherited from [ResponseData](responsedata.md).[data](responsedata.md#optional-data)*
 
-*Defined in [src/types.ts:56](https://github.com/dylanaubrey/getta/blob/42bbfe1/src/types.ts#L56)*
+*Defined in [src/types.ts:56](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/types.ts#L56)*
 
 ___
 
@@ -35,7 +35,7 @@ ___
 
 *Inherited from [ResponseDataWithErrors](responsedatawitherrors.md).[errors](responsedatawitherrors.md#optional-errors)*
 
-*Defined in [src/types.ts:60](https://github.com/dylanaubrey/getta/blob/42bbfe1/src/types.ts#L60)*
+*Defined in [src/types.ts:60](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/types.ts#L60)*
 
 ___
 
@@ -43,7 +43,7 @@ ___
 
 • **headers**? : *Headers*
 
-*Defined in [src/types.ts:39](https://github.com/dylanaubrey/getta/blob/42bbfe1/src/types.ts#L39)*
+*Defined in [src/types.ts:39](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/types.ts#L39)*
 
 ___
 
@@ -51,4 +51,4 @@ ___
 
 • **status**? : *undefined | number*
 
-*Defined in [src/types.ts:40](https://github.com/dylanaubrey/getta/blob/42bbfe1/src/types.ts#L40)*
+*Defined in [src/types.ts:40](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/types.ts#L40)*

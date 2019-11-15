@@ -1,3 +1,13 @@
+#### 0.1.1 (2019-11-15)
+
+##### Chores
+
+*  update dependencies, including cachemap ([fa6c8f65](https://github.com/badbatch/getta/commit/fa6c8f651007c2c01377bfc8aac0fa7821cd02cf))
+
+##### Documentation Changes
+
+*  update readme ([42bbfe1f](https://github.com/badbatch/getta/commit/42bbfe1f5eca6a45445715b3b69680dc14a17fca))
+
 ### 0.1.0 (2019-11-12)
 
 ##### Chores
