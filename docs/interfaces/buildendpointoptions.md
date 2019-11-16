@@ -21,7 +21,7 @@
 
 • **pathTemplateCallback**: *[PathTemplateCallback](../README.md#pathtemplatecallback)*
 
-*Defined in [src/helpers/build-endpoint/types.ts:4](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/helpers/build-endpoint/types.ts#L4)*
+*Defined in [src/helpers/build-endpoint/types.ts:4](https://github.com/dylanaubrey/getta/blob/3b42b6f/src/helpers/build-endpoint/types.ts#L4)*
 
 ___
 
@@ -29,4 +29,4 @@ ___
 
 • **pathTemplateRegExp**: *RegExp*
 
-*Defined in [src/helpers/build-endpoint/types.ts:5](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/helpers/build-endpoint/types.ts#L5)*
+*Defined in [src/helpers/build-endpoint/types.ts:5](https://github.com/dylanaubrey/getta/blob/3b42b6f/src/helpers/build-endpoint/types.ts#L5)*

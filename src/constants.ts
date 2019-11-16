@@ -1,4 +1,3 @@
-import { StringObjectMap } from "@repodog/types";
 import { JsonValue } from "type-fest";
 
 export const ARRAY_BUFFER_FORMAT = "arrayBuffer" as const;
@@ -22,21 +21,6 @@ export const DEFAULT_MAX_REDIRECTS = 5 as const;
 export const DEFAULT_MAX_RETRIES = 3 as const;
 export const DEFAULT_PATH_TEMPLATE_REGEX = /({type})|({id})|({id,\+})|({brief\|standard})/g;
 export const DEFAULT_REQUEST_RETRY_WAIT = 100;
-
-export const DEFAULT_PATH_TEMPLATE_CALLBACK = (
-  pathTemplate: string,
-  data: StringObjectMap,
-  pathTemplateRegExp: RegExp,
-) => {
-  const dataKeys = Object.keys(data);
-
-  return pathTemplate.replace(pathTemplateRegExp, match => {
-    return dataKeys.reduce((value, key) => {
-      if (match.includes(key)) return data[key];
-      return value;
-    }, "");
-  });
-};
 
 export const MISSING_BASE_PATH_ERROR = `Getta expected to receive 'basePath' in the constructor options,
   but recevied undefined.`;

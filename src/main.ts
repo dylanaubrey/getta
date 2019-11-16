@@ -12,7 +12,6 @@ import {
   DEFAULT_HEADERS,
   DEFAULT_MAX_REDIRECTS,
   DEFAULT_MAX_RETRIES,
-  DEFAULT_PATH_TEMPLATE_CALLBACK,
   DEFAULT_PATH_TEMPLATE_REGEX,
   DEFAULT_REQUEST_RETRY_WAIT,
   DELETE_METHOD,
@@ -36,6 +35,7 @@ import {
   SERVER_ERROR_REPSONSE,
 } from "./constants";
 import buildEndpoint from "./helpers/build-endpoint";
+import defaultPathTemplateCallback from "./helpers/default-path-template-callback";
 import delay from "./helpers/delay";
 import getResponseGroup from "./helpers/get-response-group";
 import isCacheabilityValid from "./helpers/is-cacheability-valid";
@@ -82,7 +82,7 @@ export class Getta {
       headers,
       maxRedirects = DEFAULT_MAX_REDIRECTS,
       maxRetries = DEFAULT_MAX_RETRIES,
-      pathTemplateCallback = DEFAULT_PATH_TEMPLATE_CALLBACK,
+      pathTemplateCallback = defaultPathTemplateCallback,
       pathTemplateRegExp = DEFAULT_PATH_TEMPLATE_REGEX,
       queryParams = {},
       requestRetryWait = DEFAULT_REQUEST_RETRY_WAIT,

@@ -1,8 +1,9 @@
 import Cachemap from "@cachemap/core";
 import map from "@cachemap/map";
 import { JsonValue } from "type-fest";
-import { DEFAULT_PATH_TEMPLATE_CALLBACK, DEFAULT_PATH_TEMPLATE_REGEX } from "../../constants";
+import { DEFAULT_PATH_TEMPLATE_REGEX } from "../../constants";
 import buildEndpoint from "../../helpers/build-endpoint";
+import defaultPathTemplateCallback from "../../helpers/default-path-template-callback";
 import { RequestOptions } from "../../types";
 import { MockRequestCallbackParams, TearDownTestParams } from "../types";
 
@@ -42,7 +43,7 @@ export function mockRequest(
   callback({
     body: JSON.stringify(body),
     endpoint: buildEndpoint(basePath, path, {
-      pathTemplateCallback: DEFAULT_PATH_TEMPLATE_CALLBACK,
+      pathTemplateCallback: defaultPathTemplateCallback,
       pathTemplateData,
       pathTemplateRegExp: DEFAULT_PATH_TEMPLATE_REGEX,
       queryParams,

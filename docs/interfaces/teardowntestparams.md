@@ -19,7 +19,7 @@
 
 • **fetchMock**: *FetchMockStatic*
 
-*Defined in [src/__test__/types.ts:6](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/__test__/types.ts#L6)*
+*Defined in [src/__test__/types.ts:6](https://github.com/dylanaubrey/getta/blob/3b42b6f/src/__test__/types.ts#L6)*
 
 ___
 
@@ -27,4 +27,4 @@ ___
 
 • **restClient**: *[Getta](../classes/getta.md)*
 
-*Defined in [src/__test__/types.ts:7](https://github.com/dylanaubrey/getta/blob/fa6c8f6/src/__test__/types.ts#L7)*
+*Defined in [src/__test__/types.ts:7](https://github.com/dylanaubrey/getta/blob/3b42b6f/src/__test__/types.ts#L7)*
