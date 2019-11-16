@@ -1,3 +1,9 @@
+#### 0.1.2 (2019-11-16)
+
+##### Refactors
+
+*  change constant to helper method ([9fb69dda](https://github.com/badbatch/getta/commit/9fb69dda8fcc51627450101c81132d6bbfe73d62))
+
 #### 0.1.1 (2019-11-15)
 
 ##### Chores
