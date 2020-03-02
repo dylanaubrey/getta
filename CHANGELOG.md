@@ -1,3 +1,9 @@
+#### 0.1.4 (2020-03-02)
+
+##### Bug Fixes
+
+*  change order of query param logic in build endpoint ([f25ed4c9](https://github.com/badbatch/getta/commit/f25ed4c903c37713c02f511f13cf6de83a9ffb0c))
+
 #### 0.1.3 (2020-03-02)
 
 ##### Refactors

@@ -20,4 +20,4 @@
 
 • **data**? : *JsonValue*
 
-*Defined in [src/types.ts:56](https://github.com/dylanaubrey/getta/blob/c5429fa/src/types.ts#L56)*
+*Defined in [src/types.ts:56](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L56)*
