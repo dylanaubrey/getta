@@ -1,5 +1,5 @@
 import defaultPathTemplateCallback from ".";
-import { defaultPath, defaultPathTemplateData } from "../../__test__/helpers";
+import { defaultPath, defaultPathTemplateData } from "../../__tests__/helpers";
 import { DEFAULT_PATH_TEMPLATE_REGEX } from "../../constants";
 
 describe("defaultPathTemplateCallback", () => {

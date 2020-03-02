@@ -1,7 +1,7 @@
 import { StringObjectMap } from "@repodog/types";
 import fetchMock, { MockRequest } from "fetch-mock";
 import md5 from "md5";
-import { PRD_136_7317 } from "./__test__/data";
+import { PRD_136_7317 } from "./__tests__/data";
 import {
   basePath,
   defaultEtag,
@@ -13,7 +13,7 @@ import {
   mockRequest,
   pathTemplateDataWithoutID,
   tearDownTest,
-} from "./__test__/helpers";
+} from "./__tests__/helpers";
 import {
   COOKIE_HEADER,
   DELETE_METHOD,
