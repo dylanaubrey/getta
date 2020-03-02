@@ -1,3 +1,9 @@
+#### 0.1.3 (2020-03-02)
+
+##### Refactors
+
+*  changing test folder name ([9cee1820](https://github.com/badbatch/getta/commit/9cee18200f4327648e2e3eb0a89c6af8f912db1c))
+
 #### 0.1.2 (2019-11-16)
 
 ##### Refactors
