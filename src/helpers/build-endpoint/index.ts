@@ -9,13 +9,13 @@ export default function buildEndpoint(
   const pathJoiner = basePath.endsWith("/") || path.startsWith("/") ? "" : "/";
   let endpoint = `${basePath}${pathJoiner}${path}`;
 
+  if (pathTemplateData) {
+    endpoint = pathTemplateCallback(endpoint, pathTemplateData, pathTemplateRegExp);
+  }
+
   if (queryParams && Object.keys(queryParams).length) {
     const queryJoin = queryString.extract(endpoint) ? "&" : "?";
     endpoint = `${endpoint}${queryJoin}${queryString.stringify(queryParams)}`;
-  }
-
-  if (pathTemplateData) {
-    endpoint = pathTemplateCallback(endpoint, pathTemplateData, pathTemplateRegExp);
   }
 
   return endpoint;
