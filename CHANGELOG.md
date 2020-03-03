@@ -1,3 +1,9 @@
+#### 0.1.5 (2020-03-03)
+
+##### Chores
+
+*  update dependencies and sort peer versions ([ec4d4b8d](https://github.com/badbatch/getta/commit/ec4d4b8d81c10a2c9e77cf32d1b66208ba28f68a))
+
 #### 0.1.4 (2020-03-02)
 
 ##### Bug Fixes

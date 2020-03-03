@@ -19,7 +19,7 @@
 
 • **active**: *string[]*
 
-*Defined in [types.ts:72](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L72)*
+*Defined in [types.ts:72](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L72)*
 
 ___
 
@@ -27,4 +27,4 @@ ___
 
 • **pending**: *Map‹string, [PendingRequestResolvers](pendingrequestresolvers.md)[]›*
 
-*Defined in [types.ts:73](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L73)*
+*Defined in [types.ts:73](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L73)*
