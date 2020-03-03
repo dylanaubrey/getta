@@ -1,5 +1,5 @@
 import Cachemap from "@cachemap/core";
-import { Func, StringObjectMap } from "@repodog/types";
+import { Func, StringObject } from "@repodog/types";
 import { JsonObject, JsonValue } from "type-fest";
 import { Required } from "utility-types";
 
@@ -17,7 +17,7 @@ export interface ConstructorOptions {
   cache?: Cachemap;
   enableConditionalRequests?: boolean;
   fetchTimeout?: number;
-  headers?: StringObjectMap;
+  headers?: StringObject;
   maxRedirects?: number;
   maxRetries?: number;
   pathTemplateCallback?: PathTemplateCallback;
@@ -29,7 +29,7 @@ export interface ConstructorOptions {
 
 export interface FetchOptions {
   body?: BodyInit;
-  headers: StringObjectMap;
+  headers: StringObject;
   method: FetchMethod;
   redirects?: number;
   retries?: number;
@@ -46,9 +46,9 @@ export interface FetchRedirectHandlerOptions extends FetchOptions {
 
 export interface RequestOptions {
   body?: BodyInit;
-  headers?: StringObjectMap;
+  headers?: StringObject;
   method?: FetchMethod;
-  pathTemplateData?: StringObjectMap;
+  pathTemplateData?: StringObject;
   queryParams?: JsonObject;
 }
 
@@ -60,7 +60,7 @@ export interface ResponseDataWithErrors extends ResponseData {
   errors?: Error[];
 }
 
-export type PathTemplateCallback = (path: string, data: StringObjectMap, pathTemplateRegExp: RegExp) => string;
+export type PathTemplateCallback = (path: string, data: StringObject, pathTemplateRegExp: RegExp) => string;
 
 export type PendingRequestResolver = (value?: ResponseDataWithErrors) => void;
 

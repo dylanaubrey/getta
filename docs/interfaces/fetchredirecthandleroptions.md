@@ -27,17 +27,17 @@
 
 *Inherited from [FetchOptions](fetchoptions.md).[body](fetchoptions.md#optional-body)*
 
-*Defined in [src/types.ts:31](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L31)*
+*Defined in [types.ts:31](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L31)*
 
 ___
 
 ###  headers
 
-• **headers**: *StringObjectMap*
+• **headers**: *StringObject*
 
 *Inherited from [FetchOptions](fetchoptions.md).[headers](fetchoptions.md#headers)*
 
-*Defined in [src/types.ts:32](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L32)*
+*Defined in [types.ts:32](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L32)*
 
 ___
 
@@ -47,7 +47,7 @@ ___
 
 *Inherited from [FetchOptions](fetchoptions.md).[method](fetchoptions.md#method)*
 
-*Defined in [src/types.ts:33](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L33)*
+*Defined in [types.ts:33](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L33)*
 
 ___
 
@@ -57,7 +57,7 @@ ___
 
 *Inherited from [FetchOptions](fetchoptions.md).[redirects](fetchoptions.md#optional-redirects)*
 
-*Defined in [src/types.ts:34](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L34)*
+*Defined in [types.ts:34](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L34)*
 
 ___
 
@@ -67,7 +67,7 @@ ___
 
 *Inherited from [FetchOptions](fetchoptions.md).[retries](fetchoptions.md#optional-retries)*
 
-*Defined in [src/types.ts:35](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L35)*
+*Defined in [types.ts:35](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L35)*
 
 ___
 
@@ -75,4 +75,4 @@ ___
 
 • **status**: *number*
 
-*Defined in [src/types.ts:44](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L44)*
+*Defined in [types.ts:44](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L44)*

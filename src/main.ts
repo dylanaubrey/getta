@@ -1,5 +1,5 @@
 import Cachemap, { CacheHeaders } from "@cachemap/core";
-import { Func, ObjectMap, StringObjectMap } from "@repodog/types";
+import { Func, PlainObject, StringObject } from "@repodog/types";
 import Cacheability from "cacheability";
 import { merge } from "lodash";
 import md5 from "md5";
@@ -62,12 +62,12 @@ export class Getta {
   private _cache?: Cachemap;
   private _conditionalRequestsEnabled: boolean;
   private _fetchTimeout: number;
-  private _headers: StringObjectMap;
+  private _headers: StringObject;
   private _maxRedirects: number;
   private _maxRetries: number;
   private _pathTemplateCallback: PathTemplateCallback;
   private _pathTemplateRegExp: RegExp;
-  private _queryParams: ObjectMap;
+  private _queryParams: PlainObject;
   private _requestRetryWait: number;
   private _requestTracker: RequestTracker = { active: [], pending: new Map() };
   private _streamReader: StreamReader;

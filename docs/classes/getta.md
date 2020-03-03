@@ -30,7 +30,7 @@
 
 \+ **new Getta**(`options`: [ConstructorOptions](../interfaces/constructoroptions.md)): *[Getta](getta.md)*
 
-*Defined in [src/main.ts:73](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/main.ts#L73)*
+*Defined in [main.ts:73](https://github.com/dylanaubrey/getta/blob/e2378d7/src/main.ts#L73)*
 
 **Parameters:**
 
@@ -46,7 +46,7 @@ Name | Type |
 
 • **get cache**(): *Cachemap | undefined*
 
-*Defined in [src/main.ts:111](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/main.ts#L111)*
+*Defined in [main.ts:111](https://github.com/dylanaubrey/getta/blob/e2378d7/src/main.ts#L111)*
 
 **Returns:** *Cachemap | undefined*
 
@@ -56,7 +56,7 @@ Name | Type |
 
 ▸ **createShortcut**(`name`: string, `path`: string, `__namedParameters`: object): *void*
 
-*Defined in [src/main.ts:115](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/main.ts#L115)*
+*Defined in [main.ts:115](https://github.com/dylanaubrey/getta/blob/e2378d7/src/main.ts#L115)*
 
 **Parameters:**
 
@@ -69,7 +69,7 @@ Name | Type |
 Name | Type |
 ------ | ------ |
 `method` | "get" &#124; "post" &#124; "put" &#124; "delete" |
-`rest` | [rest](undefined) |
+`rest` | rest |
 
 **Returns:** *void*
 
@@ -79,14 +79,14 @@ ___
 
 ▸ **delete**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [src/main.ts:124](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/main.ts#L124)*
+*Defined in [main.ts:124](https://github.com/dylanaubrey/getta/blob/e2378d7/src/main.ts#L124)*
 
 **Parameters:**
 
 Name | Type | Default |
 ------ | ------ | ------ |
 `path` | string | - |
-`options` | [RequestOptions](../interfaces/requestoptions.md) |  {} |
+`options` | [RequestOptions](../interfaces/requestoptions.md) | {} |
 
 **Returns:** *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
@@ -96,14 +96,14 @@ ___
 
 ▸ **get**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [src/main.ts:128](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/main.ts#L128)*
+*Defined in [main.ts:128](https://github.com/dylanaubrey/getta/blob/e2378d7/src/main.ts#L128)*
 
 **Parameters:**
 
 Name | Type | Default |
 ------ | ------ | ------ |
 `path` | string | - |
-`options` | [RequestOptions](../interfaces/requestoptions.md) |  {} |
+`options` | [RequestOptions](../interfaces/requestoptions.md) | {} |
 
 **Returns:** *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
@@ -113,7 +113,7 @@ ___
 
 ▸ **post**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [src/main.ts:132](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/main.ts#L132)*
+*Defined in [main.ts:132](https://github.com/dylanaubrey/getta/blob/e2378d7/src/main.ts#L132)*
 
 **Parameters:**
 
@@ -130,7 +130,7 @@ ___
 
 ▸ **put**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
 
-*Defined in [src/main.ts:136](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/main.ts#L136)*
+*Defined in [main.ts:136](https://github.com/dylanaubrey/getta/blob/e2378d7/src/main.ts#L136)*
 
 **Parameters:**
 

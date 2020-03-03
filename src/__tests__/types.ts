@@ -1,4 +1,4 @@
-import { StringObjectMap } from "@repodog/types";
+import { StringObject } from "@repodog/types";
 import { FetchMockStatic } from "fetch-mock";
 import { Getta } from "../main";
 
@@ -10,5 +10,5 @@ export interface TearDownTestParams {
 export interface MockRequestCallbackParams {
   body?: BodyInit;
   endpoint: string;
-  headers: StringObjectMap;
+  headers: StringObject;
 }

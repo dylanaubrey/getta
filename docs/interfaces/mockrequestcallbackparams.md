@@ -20,7 +20,7 @@
 
 • **body**? : *BodyInit*
 
-*Defined in [src/__tests__/types.ts:11](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/__tests__/types.ts#L11)*
+*Defined in [__tests__/types.ts:11](https://github.com/dylanaubrey/getta/blob/e2378d7/src/__tests__/types.ts#L11)*
 
 ___
 
@@ -28,12 +28,12 @@ ___
 
 • **endpoint**: *string*
 
-*Defined in [src/__tests__/types.ts:12](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/__tests__/types.ts#L12)*
+*Defined in [__tests__/types.ts:12](https://github.com/dylanaubrey/getta/blob/e2378d7/src/__tests__/types.ts#L12)*
 
 ___
 
 ###  headers
 
-• **headers**: *StringObjectMap*
+• **headers**: *StringObject*
 
-*Defined in [src/__tests__/types.ts:13](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/__tests__/types.ts#L13)*
+*Defined in [__tests__/types.ts:13](https://github.com/dylanaubrey/getta/blob/e2378d7/src/__tests__/types.ts#L13)*

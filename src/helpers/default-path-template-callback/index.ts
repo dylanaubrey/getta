@@ -1,8 +1,8 @@
-import { StringObjectMap } from "@repodog/types";
+import { StringObject } from "@repodog/types";
 
 export default function defaultPathTemplateCallback(
   pathTemplate: string,
-  data: StringObjectMap,
+  data: StringObject,
   pathTemplateRegExp: RegExp,
 ) {
   const dataKeys = Object.keys(data);

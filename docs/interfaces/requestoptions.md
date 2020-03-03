@@ -22,15 +22,15 @@
 
 • **body**? : *BodyInit*
 
-*Defined in [src/types.ts:48](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L48)*
+*Defined in [types.ts:48](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L48)*
 
 ___
 
 ### `Optional` headers
 
-• **headers**? : *StringObjectMap*
+• **headers**? : *StringObject*
 
-*Defined in [src/types.ts:49](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L49)*
+*Defined in [types.ts:49](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L49)*
 
 ___
 
@@ -38,15 +38,15 @@ ___
 
 • **method**? : *[FetchMethod](../README.md#fetchmethod)*
 
-*Defined in [src/types.ts:50](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L50)*
+*Defined in [types.ts:50](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L50)*
 
 ___
 
 ### `Optional` pathTemplateData
 
-• **pathTemplateData**? : *StringObjectMap*
+• **pathTemplateData**? : *StringObject*
 
-*Defined in [src/types.ts:51](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L51)*
+*Defined in [types.ts:51](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L51)*
 
 ___
 
@@ -54,4 +54,4 @@ ___
 
 • **queryParams**? : *JsonObject*
 
-*Defined in [src/types.ts:52](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L52)*
+*Defined in [types.ts:52](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L52)*

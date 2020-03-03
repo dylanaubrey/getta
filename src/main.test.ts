@@ -1,4 +1,4 @@
-import { StringObjectMap } from "@repodog/types";
+import { StringObject } from "@repodog/types";
 import fetchMock, { MockRequest } from "fetch-mock";
 import md5 from "md5";
 import { PRD_136_7317 } from "./__tests__/data";
@@ -148,8 +148,8 @@ describe("Getta", () => {
       });
 
       describe("WHEN the cache entry is invalid", () => {
-        function matcher(url: string, { headers }: MockRequest) {
-          return !!headers && (headers as StringObjectMap)[IF_NONE_MATCH_HEADER] === defaultEtag;
+        function matcher(_url: string, { headers }: MockRequest) {
+          return !!headers && (headers as StringObject)[IF_NONE_MATCH_HEADER] === defaultEtag;
         }
 
         async function invalidCacheEntryTestSetup() {
@@ -262,8 +262,8 @@ describe("Getta", () => {
     describe("WHEN a request is redirected more than five times", () => {
       const REDIRECT_COOKIE_FLAG = "status=redirect";
 
-      function matcher(url: string, { headers }: MockRequest) {
-        return !!headers && (headers as StringObjectMap)[COOKIE_HEADER] === REDIRECT_COOKIE_FLAG;
+      function matcher(_url: string, { headers }: MockRequest) {
+        return !!headers && (headers as StringObject)[COOKIE_HEADER] === REDIRECT_COOKIE_FLAG;
       }
 
       beforeAll(async () => {
@@ -300,8 +300,8 @@ describe("Getta", () => {
     describe("WHEN a request is retried more than three times", () => {
       const RETRY_COOKIE_FLAG = "status=retry";
 
-      function matcher(url: string, { headers }: MockRequest) {
-        return !!headers && (headers as StringObjectMap)[COOKIE_HEADER] === RETRY_COOKIE_FLAG;
+      function matcher(_url: string, { headers }: MockRequest) {
+        return !!headers && (headers as StringObject)[COOKIE_HEADER] === RETRY_COOKIE_FLAG;
       }
 
       beforeAll(async () => {

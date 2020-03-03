@@ -23,9 +23,9 @@
 
 • **data**? : *JsonValue*
 
-*Inherited from [ResponseData](responsedata.md).[data](responsedata.md#optional-data)*
+*Inherited from [FetchResult](fetchresult.md).[data](fetchresult.md#optional-data)*
 
-*Defined in [src/types.ts:56](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L56)*
+*Defined in [types.ts:56](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L56)*
 
 ___
 
@@ -33,4 +33,4 @@ ___
 
 • **errors**? : *Error[]*
 
-*Defined in [src/types.ts:60](https://github.com/dylanaubrey/getta/blob/f25ed4c/src/types.ts#L60)*
+*Defined in [types.ts:60](https://github.com/dylanaubrey/getta/blob/e2378d7/src/types.ts#L60)*
