@@ -35,10 +35,7 @@ export interface FetchOptions {
   retries?: number;
 }
 
-export interface FetchResult extends ResponseDataWithErrors {
-  headers?: Headers;
-  status?: number;
-}
+export interface FetchResponse extends ResponseDataWithErrors, Response {}
 
 export interface FetchRedirectHandlerOptions extends FetchOptions {
   status: number;
@@ -62,7 +59,7 @@ export interface ResponseDataWithErrors extends ResponseData {
 
 export type PathTemplateCallback = (path: string, data: StringObject, pathTemplateRegExp: RegExp) => string;
 
-export type PendingRequestResolver = (value?: ResponseDataWithErrors) => void;
+export type PendingRequestResolver = (value: FetchResponse) => void;
 
 export interface PendingRequestResolvers {
   resolve: PendingRequestResolver;

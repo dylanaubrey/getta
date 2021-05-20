@@ -39,18 +39,16 @@ import defaultPathTemplateCallback from "./helpers/default-path-template-callbac
 import delay from "./helpers/delay";
 import getResponseGroup from "./helpers/get-response-group";
 import isCacheabilityValid from "./helpers/is-cacheability-valid";
-import resolveResponseData from "./helpers/resolve-response-data";
 import {
   ConstructorOptions,
   FetchOptions,
   FetchRedirectHandlerOptions,
-  FetchResult,
+  FetchResponse,
   PathTemplateCallback,
   PendingRequestResolver,
   PendingRequestResolvers,
   RequestOptions,
   RequestTracker,
-  ResponseDataWithErrors,
   ShortcutProperties,
   Shortcuts,
   StreamReader,
@@ -192,18 +190,16 @@ export class Getta {
       this._cacheEntryDelete(requestHash);
     }
 
-    const { data, errors } = await this._fetch(endpoint, {
+    return this._fetch(endpoint, {
       headers: { ...this._headers, ...headers },
       method: DELETE_METHOD,
       ...rest,
     });
-
-    return resolveResponseData({ data, errors });
   }
 
-  private async _fetch(endpoint: string, { redirects, retries, ...rest }: FetchOptions): Promise<FetchResult> {
+  private async _fetch(endpoint: string, { redirects, retries, ...rest }: FetchOptions): Promise<FetchResponse> {
     try {
-      return new Promise(async (resolve: (value: FetchResult) => void, reject) => {
+      return new Promise(async (resolve: (value: FetchResponse) => void, reject) => {
         const fetchTimer = setTimeout(() => {
           reject(new Error(`${FETCH_TIMEOUT_ERROR} ${this._fetchTimeout}ms.`));
         }, this._fetchTimeout);
@@ -227,32 +223,34 @@ export class Getta {
 
         if (responseGroup === SERVER_ERROR_REPSONSE) {
           resolve(
-            await this._fetchRetryHandler(endpoint, {
+            (await this._fetchRetryHandler(endpoint, {
               retries,
               ...rest,
-            }),
+            })) as FetchResponse,
           );
         }
 
         resolve({
+          ...res,
           data: res.body ? this._bodyParser(await res[this._streamReader]()) : undefined,
-          headers,
-          status,
         });
       });
     } catch (error) {
-      return { errors: [error] };
+      const errorRes = { errors: [error] };
+      return errorRes as FetchResponse;
     }
   }
 
   private async _fetchRedirectHandler(
     endpoint: string,
     { method, redirects = 1, status, ...rest }: FetchRedirectHandlerOptions,
-  ): Promise<FetchResult> {
+  ): Promise<FetchResponse> {
     if (redirects === this._maxRedirects) {
-      return {
+      const errorRes = {
         errors: [new Error(`${MAX_REDIRECTS_EXCEEDED_ERROR} ${this._maxRedirects}.`)],
       };
+
+      return errorRes as FetchResponse;
     }
 
     redirects += 1;
@@ -303,10 +301,17 @@ export class Getta {
     );
   }
 
-  private async _getResolve(requestHash: string, { data, errors = [], headers, status }: FetchResult) {
+  private async _getResolve(requestHash: string, res: FetchResponse) {
+    const { data, headers, status } = res;
+
     if (status === NOT_FOUND_STATUS_CODE) {
       this._cacheEntryDelete(requestHash);
-      errors.push(new Error(RESOURCE_NOT_FOUND_ERROR));
+
+      if (!res.errors) {
+        res.errors = [];
+      }
+
+      res.errors.push(new Error(RESOURCE_NOT_FOUND_ERROR));
     } else if (status === NOT_MODIFIED_STATUS_CODE && headers) {
       const cachedData = await this._cacheEntryGet(requestHash);
 
@@ -316,7 +321,7 @@ export class Getta {
           etag: headers.get(ETAG_HEADER) || undefined,
         });
 
-        data = cachedData;
+        res.data = cachedData;
       }
     } else if (data && headers) {
       this._cacheEntrySet(requestHash, data, {
@@ -325,10 +330,9 @@ export class Getta {
       });
     }
 
-    const responseData = resolveResponseData({ data, errors });
-    this._resolvePendingRequests(requestHash, responseData);
+    this._resolvePendingRequests(requestHash, res);
     this._requestTracker.active = this._requestTracker.active.filter(value => value !== requestHash);
-    return responseData;
+    return res;
   }
 
   private async _request(
@@ -342,17 +346,15 @@ export class Getta {
       queryParams: { ...this._queryParams, ...queryParams },
     });
 
-    const { data, errors } = await this._fetch(endpoint, {
+    return this._fetch(endpoint, {
       body,
       headers: { ...this._headers, ...headers },
       method,
       ...rest,
     });
-
-    return resolveResponseData({ data, errors });
   }
 
-  private _resolvePendingRequests(requestHash: string, responseData: ResponseDataWithErrors) {
+  private _resolvePendingRequests(requestHash: string, responseData: FetchResponse) {
     const pendingRequests = this._requestTracker.pending.get(requestHash);
     if (!pendingRequests) return;
 
@@ -370,7 +372,7 @@ export class Getta {
     this._requestTracker.pending.set(requestHash, pending);
   }
 
-  private _trackRequest(requestHash: string): Promise<ResponseDataWithErrors> | void {
+  private _trackRequest(requestHash: string): Promise<FetchResponse> | void {
     if (this._requestTracker.active.includes(requestHash)) {
       return new Promise((resolve: PendingRequestResolver) => {
         this._setPendingRequest(requestHash, { resolve });

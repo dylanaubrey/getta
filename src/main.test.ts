@@ -80,9 +80,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: PRD_136_7317.body,
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: PRD_136_7317.body,
+          }),
+        );
       });
     });
 
@@ -109,9 +111,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: PRD_136_7317.body,
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: PRD_136_7317.body,
+          }),
+        );
       });
     });
 
@@ -141,9 +145,11 @@ describe("Getta", () => {
         });
 
         it("SHOULD return the correct response", () => {
-          expect(response).toEqual({
-            data: PRD_136_7317.body,
-          });
+          expect(response).toEqual(
+            expect.objectContaining({
+              data: PRD_136_7317.body,
+            }),
+          );
         });
       });
 
@@ -193,9 +199,11 @@ describe("Getta", () => {
           });
 
           it("SHOULD return the correct response", () => {
-            expect(response).toEqual({
-              data: PRD_136_7317.body,
-            });
+            expect(response).toEqual(
+              expect.objectContaining({
+                data: PRD_136_7317.body,
+              }),
+            );
           });
         });
 
@@ -224,9 +232,11 @@ describe("Getta", () => {
           });
 
           it("SHOULD return the correct response", () => {
-            expect(response).toEqual({
-              data: PRD_136_7317.body,
-            });
+            expect(response).toEqual(
+              expect.objectContaining({
+                data: PRD_136_7317.body,
+              }),
+            );
           });
         });
 
@@ -250,10 +260,12 @@ describe("Getta", () => {
           });
 
           it("SHOULD return the correct response", () => {
-            expect(response).toEqual({
-              data: {},
-              errors: [new Error(RESOURCE_NOT_FOUND_ERROR)],
-            });
+            expect(response).toEqual(
+              expect.objectContaining({
+                data: {},
+                errors: [new Error(RESOURCE_NOT_FOUND_ERROR)],
+              }),
+            );
           });
         });
       });
@@ -291,9 +303,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          errors: [new Error(`${MAX_REDIRECTS_EXCEEDED_ERROR} 5.`)],
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            errors: [new Error(`${MAX_REDIRECTS_EXCEEDED_ERROR} 5.`)],
+          }),
+        );
       });
     });
 
@@ -324,9 +338,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          errors: [new Error(`${MAX_RETRIES_EXCEEDED_ERROR} 3.`)],
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            errors: [new Error(`${MAX_RETRIES_EXCEEDED_ERROR} 3.`)],
+          }),
+        );
       });
     });
 
@@ -356,14 +372,17 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual([
-          {
+        expect((response as ResponseDataWithErrors[])[0]).toEqual(
+          expect.objectContaining({
             data: PRD_136_7317.body,
-          },
-          {
+          }),
+        );
+
+        expect((response as ResponseDataWithErrors[])[1]).toEqual(
+          expect.objectContaining({
             data: PRD_136_7317.body,
-          },
-        ]);
+          }),
+        );
       });
     });
 
@@ -417,9 +436,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: PRD_136_7317.body,
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: PRD_136_7317.body,
+          }),
+        );
       });
     });
 
@@ -446,9 +467,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: PRD_136_7317.body,
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: PRD_136_7317.body,
+          }),
+        );
       });
     });
   });
@@ -504,9 +527,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: {},
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: {},
+          }),
+        );
       });
 
       it("SHOULD delete any matching cache entry", async () => {
@@ -545,9 +570,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: {},
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: {},
+          }),
+        );
       });
 
       it("SHOULD delete any matching cache entry", async () => {
@@ -596,9 +623,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: {},
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: {},
+          }),
+        );
       });
     });
 
@@ -620,9 +649,11 @@ describe("Getta", () => {
       });
 
       it("SHOULD return the correct response", () => {
-        expect(response).toEqual({
-          data: {},
-        });
+        expect(response).toEqual(
+          expect.objectContaining({
+            data: {},
+          }),
+        );
       });
     });
   });
