@@ -22,7 +22,7 @@
 
 • **body**? : *BodyInit*
 
-*Defined in [types.ts:48](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L48)*
+*Defined in [src/types.ts:45](https://github.com/badbatch/getta/blob/ee6a421/src/types.ts#L45)*
 
 ___
 
@@ -30,7 +30,7 @@ ___
 
 • **headers**? : *StringObject*
 
-*Defined in [types.ts:49](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L49)*
+*Defined in [src/types.ts:46](https://github.com/badbatch/getta/blob/ee6a421/src/types.ts#L46)*
 
 ___
 
@@ -38,7 +38,7 @@ ___
 
 • **method**? : *[FetchMethod](../README.md#fetchmethod)*
 
-*Defined in [types.ts:50](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L50)*
+*Defined in [src/types.ts:47](https://github.com/badbatch/getta/blob/ee6a421/src/types.ts#L47)*
 
 ___
 
@@ -46,7 +46,7 @@ ___
 
 • **pathTemplateData**? : *StringObject*
 
-*Defined in [types.ts:51](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L51)*
+*Defined in [src/types.ts:48](https://github.com/badbatch/getta/blob/ee6a421/src/types.ts#L48)*
 
 ___
 
@@ -54,4 +54,4 @@ ___
 
 • **queryParams**? : *JsonObject*
 
-*Defined in [types.ts:52](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L52)*
+*Defined in [src/types.ts:49](https://github.com/badbatch/getta/blob/ee6a421/src/types.ts#L49)*

@@ -30,7 +30,7 @@
 
 \+ **new Getta**(`options`: [ConstructorOptions](../interfaces/constructoroptions.md)): *[Getta](getta.md)*
 
-*Defined in [main.ts:73](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/main.ts#L73)*
+*Defined in [src/main.ts:71](https://github.com/badbatch/getta/blob/ee6a421/src/main.ts#L71)*
 
 **Parameters:**
 
@@ -46,7 +46,7 @@ Name | Type |
 
 • **get cache**(): *Cachemap | undefined*
 
-*Defined in [main.ts:111](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/main.ts#L111)*
+*Defined in [src/main.ts:109](https://github.com/badbatch/getta/blob/ee6a421/src/main.ts#L109)*
 
 **Returns:** *Cachemap | undefined*
 
@@ -56,7 +56,7 @@ Name | Type |
 
 ▸ **createShortcut**(`name`: string, `path`: string, `__namedParameters`: object): *void*
 
-*Defined in [main.ts:115](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/main.ts#L115)*
+*Defined in [src/main.ts:113](https://github.com/badbatch/getta/blob/ee6a421/src/main.ts#L113)*
 
 **Parameters:**
 
@@ -77,9 +77,9 @@ ___
 
 ###  delete
 
-▸ **delete**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+▸ **delete**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[FetchResponse](../interfaces/fetchresponse.md)›*
 
-*Defined in [main.ts:124](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/main.ts#L124)*
+*Defined in [src/main.ts:122](https://github.com/badbatch/getta/blob/ee6a421/src/main.ts#L122)*
 
 **Parameters:**
 
@@ -88,15 +88,15 @@ Name | Type | Default |
 `path` | string | - |
 `options` | [RequestOptions](../interfaces/requestoptions.md) | {} |
 
-**Returns:** *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+**Returns:** *Promise‹[FetchResponse](../interfaces/fetchresponse.md)›*
 
 ___
 
 ###  get
 
-▸ **get**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+▸ **get**(`path`: string, `options`: [RequestOptions](../interfaces/requestoptions.md)): *Promise‹[FetchResponse](../interfaces/fetchresponse.md) | object›*
 
-*Defined in [main.ts:128](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/main.ts#L128)*
+*Defined in [src/main.ts:126](https://github.com/badbatch/getta/blob/ee6a421/src/main.ts#L126)*
 
 **Parameters:**
 
@@ -105,15 +105,15 @@ Name | Type | Default |
 `path` | string | - |
 `options` | [RequestOptions](../interfaces/requestoptions.md) | {} |
 
-**Returns:** *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+**Returns:** *Promise‹[FetchResponse](../interfaces/fetchresponse.md) | object›*
 
 ___
 
 ###  post
 
-▸ **post**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+▸ **post**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[FetchResponse](../interfaces/fetchresponse.md)›*
 
-*Defined in [main.ts:132](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/main.ts#L132)*
+*Defined in [src/main.ts:130](https://github.com/badbatch/getta/blob/ee6a421/src/main.ts#L130)*
 
 **Parameters:**
 
@@ -122,15 +122,15 @@ Name | Type |
 `path` | string |
 `options` | Required‹[RequestOptions](../interfaces/requestoptions.md), "body"› |
 
-**Returns:** *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+**Returns:** *Promise‹[FetchResponse](../interfaces/fetchresponse.md)›*
 
 ___
 
 ###  put
 
-▸ **put**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+▸ **put**(`path`: string, `options`: Required‹[RequestOptions](../interfaces/requestoptions.md), "body"›): *Promise‹[FetchResponse](../interfaces/fetchresponse.md)›*
 
-*Defined in [main.ts:136](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/main.ts#L136)*
+*Defined in [src/main.ts:134](https://github.com/badbatch/getta/blob/ee6a421/src/main.ts#L134)*
 
 **Parameters:**
 
@@ -139,4 +139,4 @@ Name | Type |
 `path` | string |
 `options` | Required‹[RequestOptions](../interfaces/requestoptions.md), "body"› |
 
-**Returns:** *Promise‹[ResponseDataWithErrors](../interfaces/responsedatawitherrors.md)›*
+**Returns:** *Promise‹[FetchResponse](../interfaces/fetchresponse.md)›*

@@ -8,7 +8,7 @@
 
   ↳ **ResponseDataWithErrors**
 
-  ↳ [FetchResult](fetchresult.md)
+  ↳ [FetchResponse](fetchresponse.md)
 
 ## Index
 
@@ -23,9 +23,9 @@
 
 • **data**? : *JsonValue*
 
-*Inherited from [FetchResult](fetchresult.md).[data](fetchresult.md#optional-data)*
+*Inherited from [FetchResponse](fetchresponse.md).[data](fetchresponse.md#optional-data)*
 
-*Defined in [types.ts:56](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L56)*
+*Defined in [src/types.ts:53](https://github.com/badbatch/getta/blob/ee6a421/src/types.ts#L53)*
 
 ___
 
@@ -33,4 +33,4 @@ ___
 
 • **errors**? : *Error[]*
 
-*Defined in [types.ts:60](https://github.com/dylanaubrey/getta/blob/ec4d4b8/src/types.ts#L60)*
+*Defined in [src/types.ts:57](https://github.com/badbatch/getta/blob/ee6a421/src/types.ts#L57)*

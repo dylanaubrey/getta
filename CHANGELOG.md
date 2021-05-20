@@ -1,3 +1,9 @@
+#### 0.1.6 (2021-05-20)
+
+##### New Features
+
+*  return entire response object with data and errors ([ee6a4213](https://github.com/badbatch/getta/commit/ee6a4213ef2ee3e953bf7897123d755541d48fdf))
+
 #### 0.1.5 (2020-03-03)
 
 ##### Chores
